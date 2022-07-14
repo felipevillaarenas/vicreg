@@ -1,21 +1,15 @@
 
 import os
 
-import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 
-from pytorch_lightning import LightningDataModule, LightningModule, Trainer
-from pytorch_lightning.callbacks.progress import TQDMProgressBar
+from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
 import transforms.augmentations as augmentations
 
-PATH_DATASETS = os.environ.get("PATH_DATASETS", ".")
+PATH_DATASETS = os.environ.get("PATH_DATASETS", "../data/image/")
 BATCH_SIZE = 256 if torch.cuda.is_available() else 64
 NUM_WORKERS = int(os.cpu_count() / 2)
 PIN_MEMORY = True
@@ -23,13 +17,12 @@ PIN_MEMORY = True
 
 class DataModule(LightningDataModule):
     def __init__(
-                    self,
-                    data_dir: str = PATH_DATASETS,
-                    batch_size: int = BATCH_SIZE,
-                    num_workers: int = NUM_WORKERS,
-                    pin_memory : bool = PIN_MEMORY
-
-                ):
+        self,
+        data_dir: str = PATH_DATASETS,
+        batch_size: int = BATCH_SIZE,
+        num_workers: int = NUM_WORKERS,
+        pin_memory : bool = PIN_MEMORY
+        ):
 
         super().__init__()
 
@@ -71,3 +64,4 @@ class DataModule(LightningDataModule):
                           batch_size=self.batch_size,
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory)
+
