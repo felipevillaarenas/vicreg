@@ -1,0 +1,22 @@
+{
+    "os": "macOS-10.16-x86_64-i386-64bit",
+    "python": "3.9.12",
+    "heartbeatAt": "2022-07-15T15:42:33.030258",
+    "startedAt": "2022-07-15T15:42:32.066040",
+    "docker": null,
+    "cpu_count": 4,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/Users/luisfelipevillaarenas/Documents/Artificial_Intelligence/projects/vicreg/src/train.py",
+    "codePath": "src/train.py",
+    "git": {
+        "remote": "https://github.com/felipevillaarenas/vicreg.git",
+        "commit": "dc869c597107370ef46677303682ae3047ef5009"
+    },
+    "email": "luis-felipe.villa-arenas@telekom.de",
+    "root": "/Users/luisfelipevillaarenas/Documents/Artificial_Intelligence/projects/vicreg",
+    "host": "Luiss-MacBook-Pro.local",
+    "username": "luisfelipevillaarenas",
+    "executable": "/Users/luisfelipevillaarenas/opt/anaconda3/envs/vicreg/bin/python"
+}
