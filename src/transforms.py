@@ -18,16 +18,21 @@ else:  # pragma: no cover
 
 class VICRegTrainDataTransform:
     """Transforms for VICReg.
+
     Transform::
+
         RandomResizedCrop(size=self.input_height)
         RandomHorizontalFlip()
         RandomApply([color_jitter], p=0.8)
         RandomGrayscale(p=0.2)
         GaussianBlur(kernel_size=int(0.1 * self.input_height))
         transforms.ToTensor()
+
     Example::
-        from pl_bolts.models.self_supervised.simclr.transforms import SimCLRTrainDataTransform
-        transform = SimCLRTrainDataTransform(input_height=32)
+
+        from src.transforms import SimCLRTrainDataTransform
+
+        transform = VICRegTrainDataTransform(input_height=32)
         x = sample()
         (xi, xj) = transform(x)
     """
@@ -86,7 +91,11 @@ class VICRegTrainDataTransform:
 
         # add online train transform of the size of global view
         self.online_transform = transforms.Compose(
-            [transforms.RandomResizedCrop(self.input_height), transforms.RandomHorizontalFlip(), self.final_transform]
+            [
+                transforms.RandomResizedCrop(self.input_height), 
+                transforms.RandomHorizontalFlip(), 
+                self.final_transform
+            ]
         )
 
     def __call__(self, sample):
@@ -101,13 +110,18 @@ class VICRegTrainDataTransform:
 
 class VICRegEvalDataTransform(VICRegTrainDataTransform):
     """Transforms for VICReg.
+
     Transform::
+
         Resize(input_height + 10, interpolation=3)
         transforms.CenterCrop(input_height),
         transforms.ToTensor()
+
     Example::
-        from pl_bolts.models.self_supervised.simclr.transforms import SimCLREvalDataTransform
-        transform = SimCLREvalDataTransform(input_height=32)
+
+        from src.transforms import VICRegEvalDataTransform
+
+        transform = VICRegEvalDataTransform(input_height=32)
         x = sample()
         (xi, xj) = transform(x)
     """
@@ -131,7 +145,11 @@ class VICRegEvalDataTransform(VICRegTrainDataTransform):
 
 class VICRegFinetuneTransform:
     def __init__(
-        self, input_height: int = 224, jitter_strength: float = 1.0, normalize=None, eval_transform: bool = False
+        self, 
+        input_height: int = 224, 
+        jitter_strength: float = 1.0, 
+        normalize=None, 
+        eval_transform: bool = False
     ) -> None:
 
         self.jitter_strength = jitter_strength
@@ -151,6 +169,8 @@ class VICRegFinetuneTransform:
                 transforms.RandomHorizontalFlip(p=0.5),
                 transforms.RandomApply([self.color_jitter], p=0.8),
                 transforms.RandomGrayscale(p=0.2),
+                GaussianBlur(p=1.0),
+                Solarization(p=0.0),
             ]
         else:
             data_transforms = [
