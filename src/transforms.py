@@ -30,7 +30,7 @@ class VICRegTrainDataTransform:
 
     Example::
 
-        from src.transforms import SimCLRTrainDataTransform
+        from src.transforms import VICRegTrainDataTransform
 
         transform = VICRegTrainDataTransform(input_height=32)
         x = sample()
@@ -52,14 +52,14 @@ class VICRegTrainDataTransform:
         self.input_height = input_height
         self.gaussian_blur = gaussian_blur
         self.normalize = normalize
-
         self.color_jitter = transforms.ColorJitter(
-            brightness=0.4, 
-            contrast=0.4, 
-            saturation=0.2, 
-            hue=0.1
+            brightness=0.4*jitter_strength, 
+            contrast=0.4*jitter_strength, 
+            saturation=0.2*jitter_strength, 
+            hue=0.1*jitter_strength
         )
 
+        # Define x and x prime transformations
         data_transforms = [
             transforms.RandomResizedCrop(size=self.input_height, interpolation=transforms.InterpolationMode.BICUBIC),
             transforms.RandomHorizontalFlip(p=0.5),
@@ -157,10 +157,10 @@ class VICRegFinetuneTransform:
         self.normalize = normalize
 
         self.color_jitter = transforms.ColorJitter(
-            brightness=0.4, 
-            contrast=0.4, 
-            saturation=0.2, 
-            hue=0.1
+            brightness=0.4*jitter_strength, 
+            contrast=0.4*jitter_strength, 
+            saturation=0.2*jitter_strength, 
+            hue=0.1*jitter_strength
         )
 
         if not eval_transform:
