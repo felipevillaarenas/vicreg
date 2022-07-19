@@ -8,7 +8,7 @@ class VICRegDataTransform:
     def __init__(self, train=True, input_height=224, jitter_strength=1.0, normalize=None):
         """Init data module.
 
-        The default parameters can be set using the file config.datamodule.augmentations.yaml
+        The default parameters can be set using the file config.datamodules.augmentations.yaml
 
         Args:
             train (bool): Flag used to enable transformations during fine tuning .
