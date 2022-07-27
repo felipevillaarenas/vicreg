@@ -2,12 +2,12 @@ import pytorch_lightning as pl
 from torch.utils.data import random_split, DataLoader
 
 from torchvision.datasets import CIFAR10, ImageNet
-from augmentations.transforms import VICRegDataTransformTrain
+from augmentations.transforms import VICRegDataTransformTrain, VICRegDataTransformFineTune
 
 
 class CIFAR10DataModule(pl.LightningDataModule):
     """Pytorch lightning CIFAR10 DataModule."""
-    def __init__(self, data_dir: str = "../data/image/cifar10/"):
+    def __init__(self, data_dir: str = "../data/image/cifar10/", finetune=False):
         """Init data module.
 
         The default parameters can be set using the file config.datamodules.augmentations.yaml
@@ -17,7 +17,14 @@ class CIFAR10DataModule(pl.LightningDataModule):
         """
         super().__init__()
         self.data_dir = data_dir
-        self.transform = VICRegDataTransformTrain(input_height=224, jitter_strength=1.0, normalize=None)
+        self.finetune = finetune
+
+        if self.finetune:
+            self.transform_train = VICRegDataTransformFineTune(train=True, input_height=224, jitter_strength=1.0, normalize=None)
+            self.transform_val = VICRegDataTransformFineTune(train=False, input_height=224, jitter_strength=1.0, normalize=None)
+        else:
+            self.transform_train = VICRegDataTransformTrain(input_height=224, jitter_strength=1.0, normalize=None)
+            self.transform_val = VICRegDataTransformTrain(input_height=224, jitter_strength=1.0, normalize=None)
 
     def prepare_data(self):
         # download
@@ -28,12 +35,12 @@ class CIFAR10DataModule(pl.LightningDataModule):
 
         # Assign train/val datasets for use in dataloaders
         if stage == "fit" or stage is None:
-            self.train = CIFAR10(self.data_dir, train=True, transform=self.transform)
-            self.val = CIFAR10(self.data_dir, train=False, transform=self.transform)
+            self.train = CIFAR10(self.data_dir, train=True, transform=self.transform_train)
+            self.val = CIFAR10(self.data_dir, train=False, transform=self.transform_val)
 
         # Assign test dataset for use in dataloader(s)
         if stage == "test" or stage is None:
-            self.test = CIFAR10(self.data_dir, train=False, transform=self.transform)
+            self.test = CIFAR10(self.data_dir, train=False, transform=self.transform_val)
 
 
     def train_dataloader(self):
