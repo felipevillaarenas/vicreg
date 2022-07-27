@@ -3,15 +3,14 @@ import torchvision.transforms as transforms
 
 from PIL import ImageOps, ImageFilter
 
-class VICRegDataTransform:
+class VICRegDataTransformTrain:
     """Transforms for VICReg as described in the VICReg paper."""
-    def __init__(self, train=True, input_height=224, jitter_strength=1.0, normalize=None):
-        """Init data module.
+    def __init__(self, input_height=224, jitter_strength=1.0, normalize=None):
+        """Init Class VICRegDataTransform.
 
         The default parameters can be set using the file config.datamodules.augmentations.yaml
 
         Args:
-            train (bool): Flag used to enable transformations during fine tuning .
             input_height (int): input_height.
             jitter_strength (float): Jitter intensity,
             normalize (array[array]): Custom normalization.
@@ -20,7 +19,6 @@ class VICRegDataTransform:
         self.input_height = input_height
         self.jitter_strength = jitter_strength
         self.normalize = normalize
-        self.train = train
 
         self.color_jitter = transforms.ColorJitter(
             
@@ -60,20 +58,50 @@ class VICRegDataTransform:
             ]
         )
 
-        self.finetune_transform = None
+    def __call__(self, sample):
+        return self.transform(sample), self.transform_prime(sample)
+
+
+class VICRegDataTransformFineTune:
+    """Transforms for VICReg as described in the VICReg paper for Fine Tune."""
+    def __init__(self, train=True, input_height=224, normalize=None):
+        """Init Class VICRegDataTransform.
+
+        The default parameters can be set using the file config.datamodules.augmentations.yaml
+
+        Args:
+            train (bool): Define if the transformation is used un the train dataloader
+            input_height (int): input_height.
+            normalize (array[array]): Custom normalization.
+        """
+        self.train = train
+        self.input_height = input_height
+        self.normalize = normalize
+
+        if normalize is None:
+            self.final_transform = transforms.ToTensor()
+        else:
+            self.final_transform = transforms.Compose([transforms.ToTensor(), normalize])
+
         if self.train:
-            self.finetune_transform = transforms.Compose(
+            self.transform = transforms.Compose(
                 [
-                    transforms.RandomCrop(32, padding=4, padding_mode="reflect"),
+                    transforms.RandomResizedCrop(size=self.input_height),
                     transforms.RandomHorizontalFlip(),
-                    transforms.ToTensor(),
+                    self.final_transform   
                 ]
             )
         else:
-            self.finetune_transform = transforms.ToTensor()
+            self.transform = transforms.Compose(
+                [
+                    transforms.Resize(size=int((256/224)) * self.input_height),
+                    transforms.CenterCrop(self.input_height),
+                    self.final_transform   
+                ]
+            )
 
     def __call__(self, sample):
-        return self.transform(sample), self.transform_prime(sample), self.finetune_transform(sample)
+        return self.transform(sample)
 
 
 class GaussianBlur(object):
