@@ -62,9 +62,9 @@ class VICRegDataTransformTrain:
         return self.transform(sample), self.transform_prime(sample)
 
 
-class VICRegDataTransformFineTune:
+class VICRegDataTransformEval:
     """Transforms for VICReg as described in the VICReg paper for Fine Tune."""
-    def __init__(self, train=True, input_height=224, normalize=None):
+    def __init__(self, finetune=True, input_height=224, normalize=None):
         """Init Class VICRegDataTransform.
 
         The default parameters can be set using the file config.datamodules.augmentations.yaml
@@ -74,7 +74,7 @@ class VICRegDataTransformFineTune:
             input_height (int): input_height.
             normalize (array[array]): Custom normalization.
         """
-        self.train = train
+        self.finetune = finetune
         self.input_height = input_height
         self.normalize = normalize
 
@@ -83,7 +83,7 @@ class VICRegDataTransformFineTune:
         else:
             self.final_transform = transforms.Compose([transforms.ToTensor(), normalize])
 
-        if self.train:
+        if self.finetune:
             self.transform = transforms.Compose(
                 [
                     transforms.RandomResizedCrop(size=self.input_height),

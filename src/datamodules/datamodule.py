@@ -2,12 +2,18 @@ import pytorch_lightning as pl
 from torch.utils.data import random_split, DataLoader
 
 from torchvision.datasets import CIFAR10, ImageNet
-from augmentations.transforms import VICRegDataTransformTrain, VICRegDataTransformFineTune
+from augmentations.transforms import VICRegDataTransformTrain, VICRegDataTransformEval
 
 
 class CIFAR10DataModule(pl.LightningDataModule):
     """Pytorch lightning CIFAR10 DataModule."""
-    def __init__(self, data_dir: str = "../data/image/cifar10/", finetune=False):
+    def __init__(self, 
+                 data_dir: str = "../data/image/cifar10/",
+                 batch_size: int = 32,
+                 num_workers: int = 8, 
+                 pin_memory: bool = False,
+                 finetune: bool = False
+                 ):
         """Init data module.
 
         The default parameters can be set using the file config.datamodules.augmentations.yaml
@@ -17,11 +23,14 @@ class CIFAR10DataModule(pl.LightningDataModule):
         """
         super().__init__()
         self.data_dir = data_dir
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.pin_memory = pin_memory       
         self.finetune = finetune
 
         if self.finetune:
-            self.transform_train = VICRegDataTransformFineTune(train=True, input_height=224, jitter_strength=1.0, normalize=None)
-            self.transform_val = VICRegDataTransformFineTune(train=False, input_height=224, jitter_strength=1.0, normalize=None)
+            self.transform_train = VICRegDataTransformEval(finetune=True, input_height=224, jitter_strength=1.0, normalize=None)
+            self.transform_val = VICRegDataTransformEval(finetune=False, input_height=224, jitter_strength=1.0, normalize=None)
         else:
             self.transform_train = VICRegDataTransformTrain(input_height=224, jitter_strength=1.0, normalize=None)
             self.transform_val = VICRegDataTransformTrain(input_height=224, jitter_strength=1.0, normalize=None)
@@ -44,13 +53,21 @@ class CIFAR10DataModule(pl.LightningDataModule):
 
 
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=32)
+        return DataLoader(self.train, 
+                          batch_size=self.batch_size,
+                          shuffle=True,
+                          pin_memory=self.pin_memory,
+                          num_workers=self.num_workers)
 
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=32)
+        return DataLoader(self.val,
+                          batch_size=self.batch_size,
+                          shuffle=False,
+                          pin_memory=self.pin_memory,
+                          num_workers=self.num_workers)
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=32)
+        return DataLoader(self.test,batch_size=self.batch_size, shuffle=False, pin_memory=self.pin_memory, num_workers=self.num_workers)
 
 
 
