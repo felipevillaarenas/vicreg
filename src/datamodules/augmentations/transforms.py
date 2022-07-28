@@ -3,7 +3,7 @@ import torchvision.transforms as transforms
 
 from PIL import ImageOps, ImageFilter
 
-class VICRegDataTransformTrain:
+class VICRegDataTransformPreTrain:
     """Transforms for VICReg as described in the VICReg paper."""
     def __init__(self, input_height=224, jitter_strength=1.0, normalize=None):
         """Init Class VICRegDataTransform.
@@ -62,9 +62,9 @@ class VICRegDataTransformTrain:
         return self.transform(sample), self.transform_prime(sample)
 
 
-class VICRegDataTransformEval:
+class VICRegDataTransformFineTune:
     """Transforms for VICReg as described in the VICReg paper for Fine Tune."""
-    def __init__(self, finetune=True, input_height=224, normalize=None):
+    def __init__(self, train=True, input_height=224, normalize=None):
         """Init Class VICRegDataTransform.
 
         The default parameters can be set using the file config.datamodules.augmentations.yaml
@@ -74,7 +74,7 @@ class VICRegDataTransformEval:
             input_height (int): input_height.
             normalize (array[array]): Custom normalization.
         """
-        self.finetune = finetune
+        self.train = train
         self.input_height = input_height
         self.normalize = normalize
 
@@ -83,7 +83,7 @@ class VICRegDataTransformEval:
         else:
             self.final_transform = transforms.Compose([transforms.ToTensor(), normalize])
 
-        if self.finetune:
+        if self.train:
             self.transform = transforms.Compose(
                 [
                     transforms.RandomResizedCrop(size=self.input_height),
