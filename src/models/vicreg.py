@@ -45,9 +45,6 @@ class VICReg(pl.LightningModule):
         # invariance Loss
         invariance_loss = F.mse_loss(x, y)
 
-        x = torch.cat(FullGatherLayer.apply(x), dim=0) # TODO
-        y = torch.cat(FullGatherLayer.apply(y), dim=0) # TODO
-
         # Variance Loss
         x = x - x.mean(dim=0)
         y = y - y.mean(dim=0)
