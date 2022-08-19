@@ -94,7 +94,7 @@ class VICRegDataTransformFineTune:
         else:
             self.transform = transforms.Compose(
                 [
-                    transforms.Resize(size=int((256/224)) * self.input_height),
+                    transforms.Resize(size=int(1.14 * self.input_height)),
                     transforms.CenterCrop(self.input_height),
                     self.final_transform   
                 ]
