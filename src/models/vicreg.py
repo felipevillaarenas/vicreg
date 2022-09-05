@@ -2,8 +2,12 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.models as models
+#import torchvision.models as models
 from torch.optim import AdamW
+from src.models.backbone import resnet
+
+from pl_bolts.optimizers.lars import LARS
+from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
 
 class VICReg(pl.LightningModule):
     def __init__(self, args):
