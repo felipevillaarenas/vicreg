@@ -12,7 +12,7 @@ class PreTrainDataModule(pl.LightningDataModule):
     """Pytorch lightning ImageNet DataModule."""
     def __init__(self, 
                 data_root_dir: str = "../data/image/",
-                dataset_name: str = "cifar10",
+                dataset: str = "cifar10",
                 batch_size: int = 32,
                 num_workers: int = 2, 
                 pin_memory: bool = False,
@@ -28,25 +28,24 @@ class PreTrainDataModule(pl.LightningDataModule):
             pin_memory (bool): If True, the data loader will copy Tensors into device/CUDA pinned memory before returning them.
         """
         super().__init__()
-        self.data_dir = data_root_dir+"/"+self.dataset_name
-        self.dataset_name = dataset_name
+        self.data_dir = data_root_dir+"/"+dataset
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory       
 
         # Dataset Selection
-        if dataset_name=="cifar10":
+        if dataset=="cifar10":
             self.dataset = CIFAR10
             self.normalize = transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2023, 0.1994, 0.2010])
             self.transform = VICRegDataTransformPreTrain(input_height=32, jitter_strength=0.5, normalize=self.normalize)
 
-        elif dataset_name=="stl10":
+        elif dataset=="stl10":
             self.dataset = STL10
             self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             self.transform = VICRegDataTransformPreTrain(input_height=96, jitter_strength=1, normalize=self.normalize)
 
-        elif dataset_name=="imagenet":
-            self.dataset = ImageNet
+        elif dataset=="imagenet":
+            self.dataloader = ImageNet
             self.normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             self.transform = VICRegDataTransformPreTrain(input_height=224, jitter_strength=1, normalize=self.normalize)
         
@@ -74,7 +73,7 @@ class FineTuneDataModule(pl.LightningDataModule):
     """Pytorch lightning ImageNet DataModule."""
     def __init__(self, 
                 data_root_dir: str = "../data/image/",
-                dataset_name: str= 'cifar10',
+                dataset: str= 'cifar10',
                 batch_size: int = 32,
                 num_workers: int = 2, 
                 pin_memory: bool = False,
@@ -91,8 +90,7 @@ class FineTuneDataModule(pl.LightningDataModule):
             finetune (bool): Selects data transformation for finetune the model for Evaluation.
         """
         super().__init__()
-        self.data_dir = data_root_dir+"/"+self.dataset_name
-        self.dataset_name = dataset_name
+        self.data_dir = data_root_dir+"/"+dataset
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory       

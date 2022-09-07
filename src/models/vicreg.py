@@ -1,13 +1,20 @@
-import pytorch_lightning as pl
+import os
+from pathlib import Path
+from argparse import ArgumentParser
+
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-#import torchvision.models as models
 from torch.optim import AdamW
-from src.models.backbone import resnet
+
+import pytorch_lightning as pl
 
 from pl_bolts.optimizers.lars import LARS
 from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
+
+from src.models.backbone import resnet
+
 
 class VICReg(pl.LightningModule):
     def __init__(self, args):
@@ -16,17 +23,15 @@ class VICReg(pl.LightningModule):
 
         self.args = args
         self.num_features = int(args.mlp.split("-")[-1])
-        self.backbone, self.embedding = resnet.__dict__[args.arch](
-            zero_init_residual=True
-        )
+        self.backbone, self.embedding_size = self.init_backbone()
         self.projector = self.init_projector()
 
-
-    def forward(self, x, y):
-        return self.projector(self.backbone(x))
+    def init_backbone(self):
+        backbone, embedding_size = resnet.__dict__[self.args.arch](zero_init_residual=True)
+        return backbone, embedding_size 
 
     def init_projector(self):
-        mlp_spec = f"{self.embedding}-{self.args.mlp}"
+        mlp_spec = f"{self.embedding_size}-{self.args.mlp}"
         layers = []
         f = list(map(int, mlp_spec.split("-")))
         for i in range(len(f) - 2):
@@ -34,7 +39,10 @@ class VICReg(pl.LightningModule):
             layers.append(nn.BatchNorm1d(f[i + 1]))
             layers.append(nn.ReLU(True))
         layers.append(nn.Linear(f[-2], f[-1], bias=False))
-        return nn.Sequential(*layers)  
+        return nn.Sequential(*layers)
+    
+    def forward(self, x, y):
+        return self.projector(self.backbone(x))
     
     def off_diagonal(self, x):
         n, m = x.shape
@@ -88,7 +96,26 @@ class VICReg(pl.LightningModule):
         self.log("val/variance_loss", variance_loss)
         self.log("val/covariance_loss", covariance_loss)
         return loss
-  
+
+    def exclude_from_wt_decay(self, named_params, weight_decay, skip_list=("bias", "bn")):
+            params = []
+            excluded_params = []
+
+            for name, param in named_params:
+                if not param.requires_grad:
+                    continue
+                elif any(layer_name in name for layer_name in skip_list):
+                    excluded_params.append(param)
+                else:
+                    params.append(param)
+
+            return [
+                {"params": params, "weight_decay": weight_decay},
+                {
+                    "params": excluded_params,
+                    "weight_decay": 0.0,
+                },
+            ]
 
     def configure_optimizers(self):
         if self.exclude_bn_bias:
@@ -120,3 +147,5 @@ class VICReg(pl.LightningModule):
         }
 
         return [optimizer], [scheduler]
+    
+    
