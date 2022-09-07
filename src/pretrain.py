@@ -3,22 +3,12 @@ import os
 from pathlib import Path
 from argparse import ArgumentParser
 
-from src.datamodules.datamodule import PreTrainDataModule
-from src.models.vicreg import VICReg
+from datamodule import PreTrainDataModule
+from vicreg import VICReg
 
 def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], description="Pretrain a resnet model with VICReg", add_help=False)
 
-        # Data
-        parser.add_argument("--data-dir", type=Path, default="../data/image/", required=True,
-                            help='Path to the dataset folders')
-        
-        parser.add_argument("--dataset", type=Path, default="imagenet", required=True,
-                            help='Dataset name')
-        
-   
-
-        #-------------
         # model params
         parser.add_argument("--arch", default="resnet50", type=str, help="Architecture of the backbone encoder network")
         # specify flags to store false
@@ -76,9 +66,9 @@ def cli_main():
         dataset=args.dataset,
         batch_size=args.batch_size,
         num_workers=args.num_workers, 
-        pin_memory=args.pin_memory
     )
     
+    print('x')
 
 if __name__ == "__main__":
     cli_main()

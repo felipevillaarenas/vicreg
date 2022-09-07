@@ -13,7 +13,7 @@ import pytorch_lightning as pl
 from pl_bolts.optimizers.lars import LARS
 from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
 
-from src.models.backbone import resnet
+import backbone
 
 
 class VICReg(pl.LightningModule):
@@ -27,7 +27,7 @@ class VICReg(pl.LightningModule):
         self.projector = self.init_projector()
 
     def init_backbone(self):
-        backbone, embedding_size = resnet.__dict__[self.args.arch](zero_init_residual=True)
+        backbone, embedding_size = backbone.__dict__[self.args.arch](zero_init_residual=True)
         return backbone, embedding_size 
 
     def init_projector(self):
