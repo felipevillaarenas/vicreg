@@ -3,9 +3,15 @@ import torchvision.transforms as transforms
 
 from PIL import ImageOps, ImageFilter
 
-class VICRegDataTransformPreTrain:
+class VICRegTrainDataTransform:
     """Transforms for VICReg as described in the VICReg paper."""
-    def __init__(self, input_height=224, jitter_strength=1.0, normalize=None):
+    def __init__(
+        self, 
+        input_height: int, 
+        gaussian_blur: bool,
+        jitter_strength: float, 
+        normalize=None
+        ):
         """Init Class VICRegDataTransform.
 
         The default parameters can be set using the file config.datamodules.augmentations.yaml
@@ -19,6 +25,7 @@ class VICRegDataTransformPreTrain:
         self.input_height = input_height
         self.jitter_strength = jitter_strength
         self.normalize = normalize
+        self.gaussian_blur = gaussian_blur
 
         self.color_jitter = transforms.ColorJitter(
             
@@ -28,6 +35,7 @@ class VICRegDataTransformPreTrain:
             hue=0.1*self.jitter_strength
         )
 
+        # Enable normalization
         if normalize is None:
             self.final_transform = transforms.ToTensor()
         else:
@@ -40,7 +48,7 @@ class VICRegDataTransformPreTrain:
                 transforms.RandomHorizontalFlip(p=0.5),
                 transforms.RandomApply([self.color_jitter], p=0.8),
                 transforms.RandomGrayscale(p=0.2),
-                GaussianBlur(p=1.0),
+                GaussianBlur(p=1.0, active=self.gaussian_blur),
                 Solarization(p=0.0),
                 self.final_transform   
             ]
@@ -52,7 +60,7 @@ class VICRegDataTransformPreTrain:
                 transforms.RandomHorizontalFlip(p=0.5),
                 transforms.RandomApply([self.color_jitter], p=0.8),
                 transforms.RandomGrayscale(p=0.2),
-                GaussianBlur(p=1.0),
+                GaussianBlur(p=1.0, active=self.gaussian_blur),
                 Solarization(p=0.2),
                 self.final_transform   
             ]
@@ -61,10 +69,15 @@ class VICRegDataTransformPreTrain:
     def __call__(self, sample):
         return self.transform(sample), self.transform_prime(sample)
 
-
-class VICRegDataTransformFineTune:
-    """Transforms for VICReg as described in the VICReg paper for Fine Tune."""
-    def __init__(self, train=True, input_height=224, normalize=None):
+class VICRegEvalDataTransform:
+    """Transforms for VICReg as described in the VICReg paper for Eval."""
+    def __init__(
+        self, 
+        input_height: int, 
+        gaussian_blur: bool,
+        jitter_strength: float, 
+        normalize=None
+        ):
         """Init Class VICRegDataTransform.
 
         The default parameters can be set using the file config.datamodules.augmentations.yaml
@@ -74,7 +87,6 @@ class VICRegDataTransformFineTune:
             input_height (int): input_height.
             normalize (array[array]): Custom normalization.
         """
-        self.train = train
         self.input_height = input_height
         self.normalize = normalize
 
@@ -83,22 +95,13 @@ class VICRegDataTransformFineTune:
         else:
             self.final_transform = transforms.Compose([transforms.ToTensor(), normalize])
 
-        if self.train:
-            self.transform = transforms.Compose(
-                [
-                    transforms.RandomResizedCrop(size=self.input_height),
-                    transforms.RandomHorizontalFlip(),
-                    self.final_transform   
-                ]
-            )
-        else:
-            self.transform = transforms.Compose(
-                [
-                    transforms.Resize(size=int(1.14 * self.input_height)),
-                    transforms.CenterCrop(self.input_height),
-                    self.final_transform   
-                ]
-            )
+        self.transform = transforms.Compose(
+            [
+                transforms.RandomResizedCrop(size=self.input_height),
+                transforms.RandomHorizontalFlip(),
+                self.final_transform   
+            ]
+        )
 
     def __call__(self, sample):
         return self.transform(sample)
@@ -106,11 +109,12 @@ class VICRegDataTransformFineTune:
 
 class GaussianBlur(object):
     """ Implements Gaussian blur as described in the VICReg paper."""
-    def __init__(self, p):
+    def __init__(self, p, active):
         self.p = p
+        self.active = active
 
     def __call__(self, img):
-        if np.random.rand() < self.p:
+        if np.random.rand() < self.p and self.active:
             sigma = np.random.rand() * 1.9 + 0.1
             return img.filter(ImageFilter.GaussianBlur(sigma))
         else:

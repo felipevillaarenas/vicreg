@@ -6,6 +6,18 @@ from argparse import ArgumentParser
 from datamodule import PreTrainDataModule
 from vicreg import VICReg
 
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
+from torchvision.datasets import  CIFAR10, STL10, ImageNet
+
+from pl_bolts.transforms.dataset_normalizations import (
+    cifar10_normalization,
+    imagenet_normalization,
+    stl10_normalization,
+)
+
+from transforms import VICRegTrainDataTransform, VICRegEvalDataTransform
+
 def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], description="Pretrain a resnet model with VICReg", add_help=False)
 
@@ -32,7 +44,7 @@ def add_model_specific_args(parent_parser):
         parser.add_argument("--fast_dev_run", default=1, type=int)
         parser.add_argument("--num_nodes", default=1, type=int, help="number of nodes for training")
         parser.add_argument("--gpus", default=1, type=int, help="number of gpus to train on")
-        parser.add_argument("--num_workers", default=8, type=int, help="num of workers per GPU")
+        parser.add_argument("--num_workers", default=0, type=int, help="num of workers per GPU")
         parser.add_argument("--optimizer", default="adam", type=str, help="choose between adam/lars")
         parser.add_argument("--exclude_bn_bias", action="store_true", help="exclude bn/bias from weight decay")
         parser.add_argument("--max_epochs", default=100, type=int, help="number of total epochs to run")
@@ -61,13 +73,40 @@ def cli_main():
     args = parser.parse_args()
 
     # data module call
-    PreTrainDataModule(
+    dm = PreTrainDataModule(
         data_root_dir=args.data_dir,
         dataset=args.dataset,
         batch_size=args.batch_size,
         num_workers=args.num_workers, 
     )
+
+    # Dataset args
+    if args.dataset=="cifar10":
+        # transform args
+        args.input_height = 32
+        args.gaussian_blur = False
+        args.jitter_strength = 0.5
+        normalization = cifar10_normalization()
+
+    elif args.dataset=="imagenet":
+        normalization = imagenet_normalization()
     
+    # Data Augmentations
+    dm.train_transforms = VICRegTrainDataTransform(
+        input_height=args.input_height,
+        gaussian_blur=args.gaussian_blur,
+        jitter_strength=args.jitter_strength,
+        normalize=normalization,
+    )
+
+    dm.val_transforms = VICRegEvalDataTransform(
+        input_height=args.input_height,
+        gaussian_blur=args.gaussian_blur,
+        jitter_strength=args.jitter_strength,
+        normalize=normalization,
+    )
+    
+    #model = VICReg(**args.__dict__)
     print('x')
 
 if __name__ == "__main__":

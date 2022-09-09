@@ -41,43 +41,55 @@ class VICReg(pl.LightningModule):
         layers.append(nn.Linear(f[-2], f[-1], bias=False))
         return nn.Sequential(*layers)
     
-    def forward(self, x, y):
-        return self.projector(self.backbone(x))
-    
+    def forward(self, x):
+        return self.backbone(x)
+
+
+    def shared_step(self, batch):
+        # x1, x2: batches of transform views
+        (x1, x2, _), _ = batch
+
+        # y1, y2: batches of representations
+        y1 = self(x1)
+        y2 = self(x2)
+
+        # z1, z2: batches of embeddings
+        z1 = self.projector(self(y1))
+        z2 = self.projector(self(y2))
+
+        # invariance Loss
+        invariance_loss = F.mse_loss(z1, z2)
+
+        # Share operation for Variance and Covariance
+        z1 = z1 - z1.mean(dim=0)
+        z2 = z2 - z2.mean(dim=0)
+
+        # Variance Loss
+        std_z1 = torch.sqrt(z1.var(dim=0) + 0.0001)
+        std_z2 = torch.sqrt(z2.var(dim=0) + 0.0001)
+        variance_loss_z1 = torch.mean(F.relu(1 - std_z1)) / 2
+        variance_loss_z2 = torch.mean(F.relu(1 - std_z2)) / 2
+        variance_loss = variance_loss_z1 + variance_loss_z2
+
+        # Covariance Loss
+        cov_z1 = (z1.T @ z1) / (self.args.batch_size - 1)
+        cov_z2 = (z2.T @ z2) / (self.args.batch_size - 1)
+        covariance_loss_z1 = self.off_diagonal(cov_z1).pow_(2).sum().div(self.num_features) 
+        covariance_loss_z2 = self.off_diagonal(cov_z2).pow_(2).sum().div(self.num_features)
+        covariance_loss = covariance_loss_z1 +covariance_loss_z2
+
+        # Loss function is a weighted average of the invariance, variance and covariance terms
+        loss = (
+            self.args.invariance_coeff * invariance_loss +
+            self.args.variance_coeff * variance_loss +
+            self.args.covariance_coeff * covariance_loss
+        )
+        return loss, invariance_loss, variance_loss, covariance_loss
+
     def off_diagonal(self, x):
         n, m = x.shape
         assert n == m
         return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
-
-    def shared_step(self, batch, batch_idx):
-        x, y = batch
-        x = self.projector(self.backbone(x))
-        y = self.projector(self.backbone(y))
-
-        # invariance Loss
-        invariance_loss = F.mse_loss(x, y)
-
-        # Variance Loss
-        x = x - x.mean(dim=0)
-        y = y - y.mean(dim=0)
-
-        std_x = torch.sqrt(x.var(dim=0) + 0.0001)
-        std_y = torch.sqrt(y.var(dim=0) + 0.0001)
-        variance_loss = torch.mean(F.relu(1 - std_x)) / 2 + torch.mean(F.relu(1 - std_y)) / 2
-
-        # Covariance Loss
-        cov_x = (x.T @ x) / (self.args.batch_size - 1)
-        cov_y = (y.T @ y) / (self.args.batch_size - 1)
-        covariance_loss = self.off_diagonal(cov_x).pow_(2).sum().div(
-            self.num_features
-        ) + self.off_diagonal(cov_y).pow_(2).sum().div(self.num_features)
-
-        loss = (
-            self.args.invariance_coeff * invariance_loss
-            + self.args.variance_coeff * variance_loss
-            + self.args.covariance_coeff * covariance_loss
-        )
-        return loss, invariance_loss, variance_loss, covariance_loss
 
     def training_step(self, batch, batch_idx):
         loss, invariance_loss, variance_loss, covariance_loss = self.shared_step(batch)
