@@ -17,6 +17,45 @@ import backbone
 
 
 class VICReg(pl.LightningModule):
+    """PyTorch Lightning implementation of VICReg: Variance-Invariance-Covariance Regularization For Self-Supervised Learning_
+
+    Paper authors: Adrien Bardes, Jean Ponce and Yann LeCun.
+    
+    Model implemented by:
+        - `Luis Felipe Villa-Arenas <https://github.com/felipevillaarenas/vicreg>`_
+    .. warning:: Work in progress. This implementation is still being verified.
+    
+    TODOs:
+        - verify on CIFAR-10
+        - verify on imagenet
+    
+    Example::
+        model = VICReg(num_classes=10)
+        dm = CIFAR10DataModule(num_workers=0)
+        dm.train_transforms = SimCLRTrainDataTransform(32)
+        dm.val_transforms = SimCLREvalDataTransform(32)
+        trainer = pl.Trainer()
+        trainer.fit(model, datamodule=dm)
+    
+    Train::
+        trainer = Trainer()
+        trainer.fit(model)
+    
+    CLI command::
+        # cifar10
+        python byol_module.py --gpus 1
+        # imagenet
+        python byol_module.py
+            --gpus 8
+            --dataset imagenet2012
+            --data_dir /path/to/imagenet/
+            --meta_dir /path/to/folder/with/meta.bin/
+            --batch_size 32
+    
+    .. _VICReg: https://arxiv.org/pdf/2105.04906.pdf
+    """
+
+
     def __init__(self, args):
         super().__init__()
         self.save_hyperparameters()

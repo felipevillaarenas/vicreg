@@ -4,23 +4,23 @@ import torchvision.transforms as transforms
 from PIL import ImageOps, ImageFilter
 
 class VICRegTrainDataTransform:
-    """Transforms for VICReg as described in the VICReg paper."""
+    """Transforms for VICReg implemented as in paper's author repository.
+    """
     def __init__(
         self, 
-        input_height: int, 
-        gaussian_blur: bool,
-        jitter_strength: float, 
+        input_height: int = 224, 
+        gaussian_blur: bool = True,
+        jitter_strength: float = 1, 
         normalize=None
         ):
-        """Init Class VICRegDataTransform.
-
-        The default parameters can be set using the file config.datamodules.augmentations.yaml
-
+        """
         Args:
             input_height (int): input_height.
-            jitter_strength (float): Jitter intensity,
+            jitter_strength (float): Jitter intensity.
+            gaussian_blur (bool): Enable gaussian blur transform.
             normalize (array[array]): Custom normalization.
         """
+        super().__init__()
 
         self.input_height = input_height
         self.jitter_strength = jitter_strength
@@ -76,23 +76,28 @@ class VICRegTrainDataTransform:
 
 
 class VICRegEvalDataTransform(VICRegTrainDataTransform):
-    """Transforms for VICReg as described in the VICReg paper."""
+    """ Transforms for VICReg implemented as in paper's author repository."""
     def __init__(
         self, 
-        input_height: int, 
-        gaussian_blur: bool,
-        jitter_strength: float, 
+        input_height: int = 224, 
+        gaussian_blur: bool = True,
+        jitter_strength: float = 1, 
         normalize=None
         ):
-        """Init Class VICRegDataTransform.
-
-        The default parameters can be set using the file config.datamodules.augmentations.yaml
-
+        """
         Args:
-            train (bool): Define if the transformation is used un the train dataloader
             input_height (int): input_height.
+            jitter_strength (float): Jitter intensity.
+            gaussian_blur (bool): Enable gaussian blur transform.
             normalize (array[array]): Custom normalization.
         """
+        super().__init__()
+
+        self.input_height = input_height
+        self.jitter_strength = jitter_strength
+        self.normalize = normalize
+        self.gaussian_blur = gaussian_blur
+
         # replace online transform with eval time transform
         self.online_transform = transforms.Compose(
             [
@@ -104,7 +109,7 @@ class VICRegEvalDataTransform(VICRegTrainDataTransform):
 
 
 class GaussianBlur(object):
-    """ Implements Gaussian blur as described in the VICReg paper."""
+    """Gaussian blur implemented as in paper's author repository."""
     def __init__(self, p, active):
         self.p = p
         self.active = active
@@ -118,7 +123,7 @@ class GaussianBlur(object):
 
 
 class Solarization(object):
-    """Implements Solarization as described in the VICReg paper."""
+    """Solarization implemented as in paper's author repository."""
     def __init__(self, p):
         self.p = p
 
