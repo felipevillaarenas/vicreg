@@ -54,7 +54,7 @@ class VICRegTrainDataTransform:
             ]
         )
 
-        self.transform_prime = transforms.Compose(
+        self.prime_transform = transforms.Compose(
             [
                 transforms.RandomResizedCrop(size=self.input_height, interpolation=transforms.InterpolationMode.BICUBIC),
                 transforms.RandomHorizontalFlip(p=0.5),
@@ -66,11 +66,17 @@ class VICRegTrainDataTransform:
             ]
         )
 
-    def __call__(self, sample):
-        return self.transform(sample), self.transform_prime(sample)
+        # add online train transform of the size of global view
+        self.online_transform = transforms.Compose(
+            [transforms.RandomResizedCrop(self.input_height), transforms.RandomHorizontalFlip(), self.final_transform]
+        )
 
-class VICRegEvalDataTransform:
-    """Transforms for VICReg as described in the VICReg paper for Eval."""
+    def __call__(self, sample):
+        return self.transform(sample), self.prime_transform(sample), self.online_transform 
+
+
+class VICRegEvalDataTransform(VICRegTrainDataTransform):
+    """Transforms for VICReg as described in the VICReg paper."""
     def __init__(
         self, 
         input_height: int, 
@@ -87,24 +93,14 @@ class VICRegEvalDataTransform:
             input_height (int): input_height.
             normalize (array[array]): Custom normalization.
         """
-        self.input_height = input_height
-        self.normalize = normalize
-
-        if normalize is None:
-            self.final_transform = transforms.ToTensor()
-        else:
-            self.final_transform = transforms.Compose([transforms.ToTensor(), normalize])
-
-        self.transform = transforms.Compose(
+        # replace online transform with eval time transform
+        self.online_transform = transforms.Compose(
             [
-                transforms.RandomResizedCrop(size=self.input_height),
-                transforms.RandomHorizontalFlip(),
-                self.final_transform   
+                transforms.Resize(int(self.input_height + 0.1 * self.input_height)),
+                transforms.CenterCrop(self.input_height),
+                self.final_transform,
             ]
         )
-
-    def __call__(self, sample):
-        return self.transform(sample)
 
 
 class GaussianBlur(object):
