@@ -13,7 +13,7 @@ import pytorch_lightning as pl
 from pl_bolts.optimizers.lars import LARS
 from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
 
-import backbone
+import backbone as resnet
 
 
 class VICReg(pl.LightningModule):
@@ -43,9 +43,9 @@ class VICReg(pl.LightningModule):
     
     CLI command::
         # cifar10
-        python byol_module.py --gpus 1
+        python vicreg_module.py --gpus 1
         # imagenet
-        python byol_module.py
+        python vicreg_module.py
             --gpus 8
             --dataset imagenet2012
             --data_dir /path/to/imagenet/
@@ -66,7 +66,7 @@ class VICReg(pl.LightningModule):
         self.projector = self.init_projector()
 
     def init_backbone(self):
-        backbone, embedding_size = backbone.__dict__[self.args.arch](zero_init_residual=True)
+        backbone, embedding_size = resnet.__dict__[self.args.arch](zero_init_residual=True)
         return backbone, embedding_size 
 
     def init_projector(self):
@@ -133,19 +133,19 @@ class VICReg(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         loss, invariance_loss, variance_loss, covariance_loss = self.shared_step(batch)
 
-        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log("train/invariance_loss", invariance_loss)
-        self.log("train/variance_loss", variance_loss)
-        self.log("train/covariance_loss", covariance_loss)
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("train_invariance_loss", invariance_loss)
+        self.log("train_variance_loss", variance_loss)
+        self.log("train_covariance_loss", covariance_loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss, invariance_loss, variance_loss, covariance_loss = self.shared_step(batch)
         
-        self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log("val/invariance_loss", invariance_loss)
-        self.log("val/variance_loss", variance_loss)
-        self.log("val/covariance_loss", covariance_loss)
+        self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("val_invariance_loss", invariance_loss)
+        self.log("val_variance_loss", variance_loss)
+        self.log("val_covariance_loss", covariance_loss)
         return loss
 
     def exclude_from_wt_decay(self, named_params, weight_decay, skip_list=("bias", "bn")):
