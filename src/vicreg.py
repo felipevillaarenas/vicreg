@@ -56,21 +56,45 @@ class VICReg(pl.LightningModule):
     """
 
 
-    def __init__(self, args):
+    def __init__(
+        self, 
+        arch: str,
+        mlp: str,
+        
+        batch_size: int,
+        invariance_coeff: float,
+        variance_coeff: float,
+        covariance_coeff:float,
+
+        **kwargs
+        ):
+        """
+        Args:
+
+        """
         super().__init__()
         self.save_hyperparameters()
 
-        self.args = args
-        self.num_features = int(args.mlp.split("-")[-1])
+        # Init architecture params
+        self.arch = arch
+        self.mlp = mlp
+        self.num_features = int(self.mlp.split("-")[-1])
         self.backbone, self.embedding_size = self.init_backbone()
         self.projector = self.init_projector()
 
+
+        # Init optim params
+        self.batch_size  = batch_size
+        self.invariance_coeff = invariance_coeff
+        self.variance_coeff = variance_coeff
+        self.covariance_coeff = covariance_coeff
+
     def init_backbone(self):
-        backbone, embedding_size = resnet.__dict__[self.args.arch](zero_init_residual=True)
+        backbone, embedding_size = resnet.__dict__[self.arch](zero_init_residual=True)
         return backbone, embedding_size 
 
     def init_projector(self):
-        mlp_spec = f"{self.embedding_size}-{self.args.mlp}"
+        mlp_spec = f"{self.embedding_size}-{self.mlp}"
         layers = []
         f = list(map(int, mlp_spec.split("-")))
         for i in range(len(f) - 2):
@@ -111,17 +135,17 @@ class VICReg(pl.LightningModule):
         variance_loss = variance_loss_z1 + variance_loss_z2
 
         # Covariance Loss
-        cov_z1 = (z1.T @ z1) / (self.args.batch_size - 1)
-        cov_z2 = (z2.T @ z2) / (self.args.batch_size - 1)
+        cov_z1 = (z1.T @ z1) / (self.batch_size - 1)
+        cov_z2 = (z2.T @ z2) / (self.batch_size - 1)
         covariance_loss_z1 = self.off_diagonal(cov_z1).pow_(2).sum().div(self.num_features) 
         covariance_loss_z2 = self.off_diagonal(cov_z2).pow_(2).sum().div(self.num_features)
         covariance_loss = covariance_loss_z1 +covariance_loss_z2
 
         # Loss function is a weighted average of the invariance, variance and covariance terms
         loss = (
-            self.args.invariance_coeff * invariance_loss +
-            self.args.variance_coeff * variance_loss +
-            self.args.covariance_coeff * covariance_loss
+            self.invariance_coeff * invariance_loss +
+            self.variance_coeff * variance_loss +
+            self.covariance_coeff * covariance_loss
         )
         return loss, invariance_loss, variance_loss, covariance_loss
 

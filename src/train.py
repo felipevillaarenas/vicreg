@@ -26,7 +26,7 @@ def add_model_specific_args(parent_parser):
 
         # model params
         parser.add_argument("--arch", default="resnet50", type=str, help="Architecture of the backbone encoder network")
-    
+        parser.add_argument("--mlp", default="8192-8192-8192",help='Size and number of layers of the MLP expander head')
 
         # data
         parser.add_argument("--dataset", type=str, default="cifar10", help="cifar10, imagenet")
@@ -83,6 +83,7 @@ def cli_main():
         
         # Transform params defined by the dataset type
         args.input_height = dm.dims[-1]
+        args.num_classes=dm.num_classes
         normalization = cifar10_normalization()
         
 
@@ -91,6 +92,7 @@ def cli_main():
 
         # Transform params defined by the dataset type
         args.input_height = dm.dims[-1]
+        args.num_classes =dm.num_classes
         normalization = imagenet_normalization()
     
     # Data Augmentations
@@ -117,7 +119,7 @@ def cli_main():
             drop_p=0.0,
             hidden_dim=None,
             z_dim=args.hidden_mlp,
-            num_classes=dm.num_classes,
+            num_classes=args.num_classes,
             dataset=args.dataset,
         )
 
