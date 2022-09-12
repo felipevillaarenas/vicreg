@@ -72,7 +72,7 @@ class VICRegTrainDataTransform:
         )
 
     def __call__(self, sample):
-        return self.transform(sample), self.prime_transform(sample), self.online_transform 
+        return self.transform(sample), self.prime_transform(sample), self.online_transform(sample)
 
 
 class VICRegEvalDataTransform(VICRegTrainDataTransform):

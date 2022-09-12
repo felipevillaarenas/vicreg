@@ -61,10 +61,24 @@ class VICReg(pl.LightningModule):
         arch: str,
         mlp: str,
         
-        batch_size: int,
         invariance_coeff: float,
         variance_coeff: float,
-        covariance_coeff:float,
+        covariance_coeff: float,
+
+        optimizer: str,
+        exclude_bn_bias: bool,
+        weight_decay: float,
+        learning_rate: float,
+        start_lr: float,
+        final_lr: float,
+        warmup_epochs: int,
+        max_epochs: int,
+        batch_size: int,
+
+        devices: str,
+        num_nodes: int,
+
+        num_samples:int,
 
         **kwargs
         ):
@@ -82,12 +96,34 @@ class VICReg(pl.LightningModule):
         self.backbone, self.embedding_size = self.init_backbone()
         self.projector = self.init_projector()
 
-
-        # Init optim params
-        self.batch_size  = batch_size
+        # Init loss params
         self.invariance_coeff = invariance_coeff
         self.variance_coeff = variance_coeff
         self.covariance_coeff = covariance_coeff
+
+        # Init optimizer params
+        self.optimizer = optimizer
+        self.exclude_bn_bias = exclude_bn_bias
+        self.weight_decay = weight_decay
+        self.learning_rate = learning_rate
+        self.start_lr = start_lr
+        self.final_lr = final_lr
+        self.warmup_epochs = warmup_epochs
+        self.max_epochs = max_epochs
+        self.batch_size  = batch_size
+
+        # Init infrastructure
+        self.devices = devices
+        self.num_nodes = num_nodes
+
+        # Data specific
+        self.num_samples = num_samples
+
+        # compute iters per epoch
+        global_batch_size = self.num_nodes * self.devices * self.batch_size if self.devices > 0 else self.batch_size
+        self.train_iters_per_epoch = self.num_samples // global_batch_size
+
+
 
     def init_backbone(self):
         backbone, embedding_size = resnet.__dict__[self.arch](zero_init_residual=True)
@@ -117,8 +153,8 @@ class VICReg(pl.LightningModule):
         y2 = self(x2)
 
         # z1, z2: batches of embeddings
-        z1 = self.projector(self(y1))
-        z2 = self.projector(self(y2))
+        z1 = self.projector(y1)
+        z2 = self.projector(y2)
 
         # invariance Loss
         invariance_loss = F.mse_loss(z1, z2)
@@ -198,7 +234,7 @@ class VICReg(pl.LightningModule):
         else:
             params = self.parameters()
 
-        if self.optim == "lars":
+        if self.optimizer == "lars":
             optimizer = LARS(
                 params,
                 lr=self.learning_rate,
@@ -206,7 +242,7 @@ class VICReg(pl.LightningModule):
                 weight_decay=self.weight_decay,
                 trust_coefficient=0.001,
             )
-        elif self.optim == "adam":
+        elif self.optimizer == "adam":
             optimizer = torch.optim.Adam(params, lr=self.learning_rate, weight_decay=self.weight_decay)
 
         warmup_steps = self.train_iters_per_epoch * self.warmup_epochs
