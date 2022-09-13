@@ -32,36 +32,36 @@ Here are some examples!
 
 **Python**
 
-    ```python
-    model = VICReg(arch="resnet34",mlp_expander="2048-2048")
-            dm = CIFAR10DataModule(num_workers=0)
-            dm.train_transforms = VICRegTrainDataTransform(32)
-            dm.val_transforms = VICRegEvalDataTransform(32)
-            trainer = pl.Trainer()
-            trainer.fit(model, datamodule=dm)
-    ```
+```python
+model = VICReg(arch="resnet34",mlp_expander="2048-2048")
+        dm = CIFAR10DataModule(num_workers=0)
+        dm.train_transforms = VICRegTrainDataTransform(32)
+        dm.val_transforms = VICRegEvalDataTransform(32)
+        trainer = pl.Trainer()
+        trainer.fit(model, datamodule=dm)
+```
 
 **Command line interface** [`cifar10`]
 
-    ```
-    python vicreg_module.py 
-                --accelerator gpu
-                --devices 1
-                --dataset cifar10
-                --arch resnet34
-                --mlp_expander 2048-2048
-    ```
+```
+python vicreg_module.py 
+            --accelerator gpu
+            --devices 1
+            --dataset cifar10
+            --arch resnet34
+            --mlp_expander 2048-2048
+```
 
 **Command line interface** [`imagenet`]
     
-    ```
-    python vicreg_module.py
-                --accelerator gpu
-                --devices 1
-                --dataset imagenet
-                --data_dir /path/to/imagenet/
-                --batch_size 256
-                --arch resnet50
-                --mlp_expander 8192-8192-8192
-    ```
+```
+python vicreg_module.py
+            --accelerator gpu
+            --devices 1
+            --dataset imagenet
+            --data_dir /path/to/imagenet/
+            --batch_size 256
+            --arch resnet50
+            --mlp_expander 8192-8192-8192
+```
 <br>
