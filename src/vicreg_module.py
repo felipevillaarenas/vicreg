@@ -29,10 +29,10 @@ class VICReg(LightningModule):
         - verify on imagenet
     
     Example::
-        model = VICReg(num_classes=10)
+        model = VICReg(arch="resnet34",mlp_expander="2048-2048")
         dm = CIFAR10DataModule(num_workers=0)
-        dm.train_transforms = SimCLRTrainDataTransform(32)
-        dm.val_transforms = SimCLREvalDataTransform(32)
+        dm.train_transforms = VICRegTrainDataTransform(32)
+        dm.val_transforms = VICRegEvalDataTransform(32)
         trainer = pl.Trainer()
         trainer.fit(model, datamodule=dm)
     
@@ -42,14 +42,22 @@ class VICReg(LightningModule):
     
     CLI command::
         # cifar10
-        python vicreg_module.py --gpus 1
+        python vicreg_module.py 
+            --accelerator gpu
+            --devices 1
+            --dataset cifar10
+            --arch resnet34
+            --mlp_expander 2048-2048
+
         # imagenet
         python vicreg_module.py
-            --gpus 8
-            --dataset imagenet2012
+            --accelerator gpu
+            --devices 1
+            --dataset imagenet
             --data_dir /path/to/imagenet/
-            --meta_dir /path/to/folder/with/meta.bin/
-            --batch_size 32
+            --batch_size 256
+            --arch resnet50
+            --mlp_expander 8192-8192-8192
     
     .. _VICReg: https://arxiv.org/pdf/2105.04906.pdf
     """
