@@ -74,13 +74,23 @@ class VICReg(LightningModule):
         exclude_bn_bias: bool = False,
         weight_decay: float = 1e-6,
         learning_rate: float = 0.01,
-        warmup_steps:int = 1e5,
-        total_steps:int = 1e50,
+        warmup_steps:int = -1,
+        total_steps:int = -1,
         **kwargs
         ):
         """
         Args:
-
+            arch: Architecture of the backbone encoder network
+            mlp_expander: size and number of layers of the MLP expander head
+            invariance_coeff: invariance regularization loss coefficient
+            variance_coeff: variance regularization loss coefficient
+            covariance_coeff: covariance regularization loss coefficient
+            optimizer: optimizer type [adam, lars]
+            exclude_bn_bias: exclude bn/bias from weight decay
+            weight_decay: weight decay
+            learning_rate: learning rate
+            warmup_steps: scheduler warmup steps
+            total_steps: scheduler total steps
         """
         super().__init__()
         self.save_hyperparameters()
@@ -214,7 +224,8 @@ class VICReg(LightningModule):
             params = self.exclude_from_wt_decay(self.named_parameters(), weight_decay=self.weight_decay)
         else:
             params = self.parameters()
-
+        
+        # Optimizer
         if self.optimizer == "lars":
             optimizer = LARS(
                 params,
@@ -225,15 +236,19 @@ class VICReg(LightningModule):
             )
         elif self.optimizer == "adam":
             optimizer = torch.optim.Adam(params, lr=self.learning_rate, weight_decay=self.weight_decay)
-
-        scheduler = {
-            "scheduler": torch.optim.lr_scheduler.LambdaLR(
-                optimizer,
-                linear_warmup_decay(self.warmup_steps, self.total_steps, cosine=True),
-            ),
-            "interval": "step",
-            "frequency": 1,
-        }
+        
+        # Scheduler
+        if self.warmup_steps > 0 and self.total_steps > self.warmup_steps:
+            scheduler = {
+                "scheduler": torch.optim.lr_scheduler.LambdaLR(
+                    optimizer,
+                    linear_warmup_decay(self.warmup_steps, self.total_steps, cosine=True),
+                ),
+                "interval": "step",
+                "frequency": 1,
+            }
+        else:
+            scheduler = None
 
         return [optimizer], [scheduler]
     
@@ -242,8 +257,8 @@ class VICReg(LightningModule):
         parser = ArgumentParser(parents=[parent_parser], description="Pretrain a resnet model with VICReg", add_help=False)
 
         # model architecture params
-        parser.add_argument("--arch", default="resnet50", type=str, help="Architecture of the backbone encoder network")
-        parser.add_argument("--mlp_expander", default="8192-8192-8192",help='Size and number of layers of the MLP expander head')
+        parser.add_argument("--arch", default="resnet50", type=str, help="architecture of the backbone encoder network")
+        parser.add_argument("--mlp_expander", default="8192-8192-8192",help='size and number of layers of the MLP expander head')
 
         # data
         parser.add_argument("--dataset", default="cifar10", type=str, help="cifar10, imagenet")
