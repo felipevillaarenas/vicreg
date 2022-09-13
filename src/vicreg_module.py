@@ -1,5 +1,3 @@
-import os
-from pathlib import Path
 from argparse import ArgumentParser
 
 import torch
@@ -8,7 +6,7 @@ import torch.nn.functional as F
 
 import pytorch_lightning as pl
 
-from pytorch_lightning import Trainer
+from pytorch_lightning import LightningModule,Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
 from pl_bolts.optimizers.lars import LARS
@@ -17,7 +15,7 @@ from pl_bolts.transforms.dataset_normalizations import cifar10_normalization, im
 
 import vicreg_resnet as resnet
 
-class VICReg(pl.LightningModule):
+class VICReg(LightningModule):
     """PyTorch Lightning implementation of VICReg: Variance-Invariance-Covariance Regularization For Self-Supervised Learning_
 
     Paper authors: Adrien Bardes, Jean Ponce and Yann LeCun.
