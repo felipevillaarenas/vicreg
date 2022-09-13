@@ -59,25 +59,20 @@ class VICReg(pl.LightningModule):
     def __init__(
         self, 
         arch: str,
-        mlp: str,
+        mlp_expander: str,
         
         invariance_coeff: float,
         variance_coeff: float,
         covariance_coeff: float,
-
         optimizer: str,
         exclude_bn_bias: bool,
         weight_decay: float,
         learning_rate: float,
-        start_lr: float,
-        final_lr: float,
         warmup_epochs: int,
         max_epochs: int,
         batch_size: int,
-
         devices: str,
         num_nodes: int,
-
         num_samples:int,
 
         **kwargs
@@ -91,7 +86,7 @@ class VICReg(pl.LightningModule):
 
         # Init architecture params
         self.arch = arch
-        self.mlp = mlp
+        self.mlp_expander = mlp_expander
         self.num_features = int(self.mlp.split("-")[-1])
         self.backbone, self.embedding_size = self.init_backbone()
         self.projector = self.init_projector()
@@ -106,8 +101,6 @@ class VICReg(pl.LightningModule):
         self.exclude_bn_bias = exclude_bn_bias
         self.weight_decay = weight_decay
         self.learning_rate = learning_rate
-        self.start_lr = start_lr
-        self.final_lr = final_lr
         self.warmup_epochs = warmup_epochs
         self.max_epochs = max_epochs
         self.batch_size  = batch_size
@@ -130,7 +123,7 @@ class VICReg(pl.LightningModule):
         return backbone, embedding_size 
 
     def init_projector(self):
-        mlp_spec = f"{self.embedding_size}-{self.mlp}"
+        mlp_spec = f"{self.embedding_size}-{self.mlp_expander}"
         layers = []
         f = list(map(int, mlp_spec.split("-")))
         for i in range(len(f) - 2):
@@ -190,7 +183,7 @@ class VICReg(pl.LightningModule):
         assert n == m
         return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch):
         loss, invariance_loss, variance_loss, covariance_loss = self.shared_step(batch)
 
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
@@ -199,7 +192,7 @@ class VICReg(pl.LightningModule):
         self.log("train_covariance_loss", covariance_loss)
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch):
         loss, invariance_loss, variance_loss, covariance_loss = self.shared_step(batch)
         
         self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)

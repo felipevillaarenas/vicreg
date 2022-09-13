@@ -26,12 +26,12 @@ def add_model_specific_args(parent_parser):
 
         # model architecture params
         parser.add_argument("--arch", default="resnet50", type=str, help="Architecture of the backbone encoder network")
-        parser.add_argument("--mlp", default="8192-8192-8192",help='Size and number of layers of the MLP expander head')
+        parser.add_argument("--mlp_expander", default="8192-8192-8192",help='Size and number of layers of the MLP expander head')
 
         # data
         parser.add_argument("--dataset", type=str, default="cifar10", help="cifar10, imagenet")
         parser.add_argument("--data_dir", type=str, default="./data/image/cifar10", help="path to download data")
-        parser.add_argument("--batch_size", default=32, type=int, help="batch size per device")
+        parser.add_argument("--batch_size", default=128, type=int, help="batch size per device")#2048
 
         # transform params
         parser.add_argument("--gaussian_blur", action="store_true", help="add gaussian blur")
@@ -41,13 +41,10 @@ def add_model_specific_args(parent_parser):
         parser.add_argument("--optimizer", default="adam", type=str, help="choose between adam/lars")
         parser.add_argument("--exclude_bn_bias", action="store_true", help="exclude bn/bias from weight decay")
         parser.add_argument("--weight_decay", default=1e-6, type=float, help="weight decay")
-        parser.add_argument("--learning_rate", default=1e-3, type=float, help="base learning rate")
-        parser.add_argument("--start_lr", default=0, type=float, help="initial warmup learning rate")
-        parser.add_argument("--final_lr", type=float, default=1e-6, help="final learning rate")
+        parser.add_argument("--learning_rate", default=0.01, type=float, help="base learning rate")#0.2
         parser.add_argument("--warmup_epochs", default=10, type=int, help="number of warmup epochs")
-        parser.add_argument("--max_epochs", default=100, type=int, help="number of total epochs to run")
+        parser.add_argument("--max_epochs", default=1000, type=int, help="number of total epochs to run")
         parser.add_argument("--max_steps", default=-1, type=int, help="Training will stop if max_steps or max_epochs have reached (earliest)")
-
 
         # Loss
         parser.add_argument("--invariance-coeff", type=float, default=25.0, help='invariance regularization loss coefficient')
@@ -60,10 +57,8 @@ def add_model_specific_args(parent_parser):
         parser.add_argument("--num_workers", default=1, type=int, help="num of workers per device")
         parser.add_argument("--num_nodes", default=1, type=int, help="num of nodes")
 
-
         # Online Finetune
         parser.add_argument("--online_ft", action="store_true", help="enable online evaluator")
-
 
         return parser
 
@@ -122,7 +117,7 @@ def cli_main():
         online_evaluator = SSLOnlineEvaluator(
             drop_p=0.0,
             hidden_dim=None,
-            z_dim=args.hidden_mlp,
+            z_dim=model.embedding_size,
             num_classes=args.num_classes,
             dataset=args.dataset,
         )
@@ -145,7 +140,6 @@ def cli_main():
 
     trainer.fit(model, datamodule=dm)
 
-    print('x')
 
 if __name__ == "__main__":
     cli_main()
