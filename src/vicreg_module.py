@@ -117,7 +117,6 @@ class VICReg(LightningModule):
     def forward(self, x):
         return self.backbone(x)
 
-
     def shared_step(self, batch):
         # x1, x2: batches of transform views
         (x1, x2, _), _ = batch
@@ -264,7 +263,7 @@ class VICReg(LightningModule):
         # Trainer & Infrastructure
         parser.add_argument("--accelerator", default="auto", type=str, help="supports passing different accelerator types ('cpu', 'gpu', 'tpu', 'ipu', 'auto') as well as custom accelerator instances")
         parser.add_argument("--devices", default=1, type=int, help="number of devices to train on")
-        parser.add_argument("--num_workers", default=1, type=int, help="num of workers per device")
+        parser.add_argument("--num_workers", default=4, type=int, help="num of workers per device")
         parser.add_argument("--num_nodes", default=1, type=int, help="num of nodes")
 
         # Online Finetune
