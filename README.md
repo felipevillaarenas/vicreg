@@ -49,7 +49,7 @@ python vicreg_module.py
             --devices 1
             --dataset cifar10
             --arch resnet34
-            --mlp_expander 2048-2048
+            --mlp_expander 2048-2048-2048
 ```
 
 **Command line interface** [`imagenet`]
