@@ -47,7 +47,7 @@ class VICReg(LightningModule):
             --devices 1
             --dataset cifar10
             --arch resnet34
-            --mlp_expander 2048-2048
+            --mlp_expander 2048-2048-2048
 
         # imagenet
         python vicreg_module.py
@@ -70,10 +70,10 @@ class VICReg(LightningModule):
         invariance_coeff: float = 25.0,
         variance_coeff: float = 25.0,
         covariance_coeff: float = 1.0,
-        optimizer: str = "lars",
+        optimizer: str = "adam",
         exclude_bn_bias: bool = False,
         weight_decay: float = 1e-6,
-        learning_rate: float = 0.01,
+        learning_rate: float = 0.001,
         warmup_steps:int = -1,
         total_steps:int = -1,
         **kwargs
@@ -135,18 +135,7 @@ class VICReg(LightningModule):
     def forward(self, x):
         return self.backbone(x)
 
-    def shared_step(self, batch):
-        # x1, x2: batches of transform views
-        (x1, x2, _), _ = batch
-
-        # y1, y2: batches of representations
-        y1 = self(x1)
-        y2 = self(x2)
-
-        # z1, z2: batches of embeddings
-        z1 = self.projector(y1)
-        z2 = self.projector(y2)
-
+    def vigreg_loss(self, z1, z2):
         # invariance Loss
         invariance_loss = F.mse_loss(z1, z2)
 
@@ -181,22 +170,41 @@ class VICReg(LightningModule):
         assert n == m
         return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
 
-    def training_step(self, batch, batch_idx):
-        loss, invariance_loss, variance_loss, covariance_loss = self.shared_step(batch)
+    def shared_step(self, batch, batch_idx):
+        # x1, x2: batches of transform views
+        (x1, x2, _), _ = batch
 
-        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log("train_invariance_loss", invariance_loss)
-        self.log("train_variance_loss", variance_loss)
-        self.log("train_covariance_loss", covariance_loss)
+        # y1, y2: batches of representations
+        y1 = self(x1)
+        y2 = self(x2)
+
+        # z1, z2: batches of embeddings
+        z1 = self.projector(y1)
+        z2 = self.projector(y2)
+
+        # vigreg Loss
+        return self.vigreg_loss(z1, z2)
+
+    def training_step(self, batch, batch_idx):
+        loss, invariance_loss, variance_loss, covariance_loss = self.shared_step(batch, batch_idx)
+
+        # log results
+        self.log_dict({"train_loss": loss, 
+                       "train_invariance_loss": invariance_loss, 
+                       "train_variance_loss": variance_loss, 
+                       "train_covariance_loss": covariance_loss
+                       })
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss, invariance_loss, variance_loss, covariance_loss = self.shared_step(batch)
+        loss, invariance_loss, variance_loss, covariance_loss = self.shared_step(batch, batch_idx)
         
-        self.log("val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log("val_invariance_loss", invariance_loss)
-        self.log("val_variance_loss", variance_loss)
-        self.log("val_covariance_loss", covariance_loss)
+        # log results
+        self.log_dict({"val_loss": loss, 
+                       "val_invariance_loss": invariance_loss, 
+                       "val_variance_loss": variance_loss, 
+                       "val_covariance_loss": covariance_loss
+                       })
         return loss
 
     def exclude_from_wt_decay(self, named_params, weight_decay, skip_list=("bias", "bn")):
@@ -257,13 +265,13 @@ class VICReg(LightningModule):
         parser = ArgumentParser(parents=[parent_parser], description="Pretrain a resnet model with VICReg", add_help=False)
 
         # model architecture params
-        parser.add_argument("--arch", default="resnet50", type=str, help="architecture of the backbone encoder network")
-        parser.add_argument("--mlp_expander", default="8192-8192-8192",help='size and number of layers of the MLP expander head')
+        parser.add_argument("--arch", default="resnet34", type=str, help="architecture of the backbone encoder network")
+        parser.add_argument("--mlp_expander", default="2048-2048-2048",help='size and number of layers of the MLP expander head')
 
         # data
         parser.add_argument("--dataset", default="cifar10", type=str, help="cifar10, imagenet")
         parser.add_argument("--data_dir", default="./data/image/cifar10", type=str, help="path to download data")
-        parser.add_argument("--batch_size", default=128, type=int, help="batch size per device")#2048
+        parser.add_argument("--batch_size", default=128, type=int, help="batch size per device")
 
         # transform params
         parser.add_argument("--gaussian_blur", default=True, type=bool, help="add gaussian blur")
@@ -273,10 +281,11 @@ class VICReg(LightningModule):
         parser.add_argument("--optimizer", default="adam", type=str, help="choose between adam/lars")
         parser.add_argument("--exclude_bn_bias", default=False, type=bool, help="exclude bn/bias from weight decay")
         parser.add_argument("--weight_decay", default=1e-6, type=float, help="weight decay")
-        parser.add_argument("--learning_rate", default=0.01, type=float, help="base learning rate")#0.2
-        parser.add_argument("--warmup_epochs", default=10, type=int, help="number of warmup epochs")
+        parser.add_argument("--learning_rate", default=0.001, type=float, help="base learning rate")
         parser.add_argument("--max_epochs", default=1000, type=int, help="number of total epochs to run")
-        parser.add_argument("--max_steps", default=-1, type=int, help="Training will stop if max_steps or max_epochs have reached (earliest)")
+
+        # Scheduler
+        parser.add_argument("--warmup_epochs", default=-1, type=int, help="number of warmup epochs")
 
         # Loss
         parser.add_argument("--invariance-coeff", default=25.0, type=float, help='invariance regularization loss coefficient')
@@ -290,7 +299,7 @@ class VICReg(LightningModule):
         parser.add_argument("--num_nodes", default=1, type=int, help="num of nodes")
 
         # Online Finetune
-        parser.add_argument("--online_ft", default=False, type=bool, help="enable online evaluator")
+        parser.add_argument("--online_ft", default=True, type=bool, help="enable online evaluator")
 
         return parser
 
@@ -340,12 +349,16 @@ def cli_main():
     )
     
     # Distributed params
-    args.world_size = args.num_nodes * args.devices if args.devices > 0 else 1
-    args.train_iters_per_epoch = args.num_samples // args.world_size
+    args.global_batch_size = args.num_nodes * args.devices * args.batch_size if args.devices > 0 else args.batch_size
+    args.train_iters_per_epoch = args.num_samples // args.global_batch_size
 
     # Scheduler params
-    args.warmup_steps = args.train_iters_per_epoch * args.warmup_epochs
-    args.total_steps = args.train_iters_per_epoch * args.max_epochs
+    if args.warmup_epochs>0:
+        args.warmup_steps = args.train_iters_per_epoch * args.warmup_epochs
+        args.total_steps = args.train_iters_per_epoch * args.max_epochs
+    else:
+        args.warmup_steps = -1
+        args.total_steps = -1
 
     model = VICReg(**args.__dict__)
 
@@ -367,7 +380,6 @@ def cli_main():
 
     trainer = Trainer(
         max_epochs=args.max_epochs,
-        max_steps=args.max_steps,
         accelerator=args.accelerator,
         devices=args.devices,
         num_nodes=args.num_nodes,
