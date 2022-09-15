@@ -108,7 +108,7 @@ class VICReg(LightningModule):
         self.covariance_coeff = covariance_coeff
 
         # Init optimizer params
-        self.optimizer = optimizer
+        self.optim = optimizer
         self.exclude_bn_bias = exclude_bn_bias
         self.weight_decay = weight_decay
         self.learning_rate = learning_rate
@@ -234,7 +234,7 @@ class VICReg(LightningModule):
             params = self.parameters()
         
         # Optimizer
-        if self.optimizer == "lars":
+        if self.optim == "lars":
             optimizer = LARS(
                 params,
                 lr=self.learning_rate,
@@ -242,21 +242,18 @@ class VICReg(LightningModule):
                 weight_decay=self.weight_decay,
                 trust_coefficient=0.001,
             )
-        elif self.optimizer == "adam":
+        elif self.optim == "adam":
             optimizer = torch.optim.Adam(params, lr=self.learning_rate, weight_decay=self.weight_decay)
         
         # Scheduler
-        if self.warmup_steps > 0 and self.total_steps > self.warmup_steps:
-            scheduler = {
-                "scheduler": torch.optim.lr_scheduler.LambdaLR(
-                    optimizer,
-                    linear_warmup_decay(self.warmup_steps, self.total_steps, cosine=True),
-                ),
-                "interval": "step",
-                "frequency": 1,
-            }
-        else:
-            scheduler = None
+        scheduler = {
+            "scheduler": torch.optim.lr_scheduler.LambdaLR(
+                optimizer,
+                linear_warmup_decay(self.warmup_steps, self.total_steps, cosine=True),
+            ),
+            "interval": "step",
+            "frequency": 1,
+        }
 
         return [optimizer], [scheduler]
     
@@ -285,7 +282,7 @@ class VICReg(LightningModule):
         parser.add_argument("--max_epochs", default=1000, type=int, help="number of total epochs to run")
 
         # Scheduler
-        parser.add_argument("--warmup_epochs", default=-1, type=int, help="number of warmup epochs")
+        parser.add_argument("--warmup_epochs", default=0, type=int, help="number of warmup epochs")
 
         # Loss
         parser.add_argument("--invariance-coeff", default=25.0, type=float, help='invariance regularization loss coefficient')
@@ -353,12 +350,8 @@ def cli_main():
     args.train_iters_per_epoch = args.num_samples // args.global_batch_size
 
     # Scheduler params
-    if args.warmup_epochs>0:
-        args.warmup_steps = args.train_iters_per_epoch * args.warmup_epochs
-        args.total_steps = args.train_iters_per_epoch * args.max_epochs
-    else:
-        args.warmup_steps = -1
-        args.total_steps = -1
+    args.warmup_steps = args.train_iters_per_epoch * args.warmup_epochs
+    args.total_steps = args.train_iters_per_epoch * args.max_epochs
 
     model = VICReg(**args.__dict__)
 
