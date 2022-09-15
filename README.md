@@ -33,7 +33,7 @@ Here are some examples!
 **Python**
 
 ```python
-model = VICReg(arch="resnet34",mlp_expander="2048-2048")
+model = VICReg(arch="resnet34",mlp_expander="2048-2048-2048")
         dm = CIFAR10DataModule(num_workers=0)
         dm.train_transforms = VICRegTrainDataTransform(32)
         dm.val_transforms = VICRegEvalDataTransform(32)
