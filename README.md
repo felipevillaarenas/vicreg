@@ -5,6 +5,7 @@
 <a href="https://pytorch.org/get-started/locally/"><img alt="Python" src="https://img.shields.io/badge/-Python 3.7--3.9-blue?style=for-the-badge&logo=python&logoColor=white"></a>
 <a href="https://pytorch.org/get-started/locally/"><img alt="PyTorch" src="https://img.shields.io/badge/-PyTorch 1.12+-ee4c2c?style=for-the-badge&logo=pytorch&logoColor=white"></a>
 <a href="https://pytorchlightning.ai/"><img alt="Lightning" src="https://img.shields.io/badge/-Lightning-792ee5?style=for-the-badge&logo=pytorchlightning&logoColor=white"></a>
+<a href="https://colab.research.google.com/drive/1qQB85JVEIml9pNMIeES2hMfFZZkKmB75?usp=sharing"><img alt="Lightning" src="https://img.shields.io/badge/Colab-F9AB00?style=for-the-badge&logo=googlecolab&color=525252"></a>
 
 
 
@@ -64,4 +65,10 @@ python vicreg_module.py
             --arch resnet50
             --mlp_expander 8192-8192-8192
 ```
+
+### Check the Colab version
+
+If you love notebooks and free GPUs, the Colab version of this repository can be found [here](https://colab.research.google.com/drive/1qQB85JVEIml9pNMIeES2hMfFZZkKmB75?usp=sharing)
+
+
 <br>
