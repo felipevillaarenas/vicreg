@@ -9,6 +9,8 @@ import pytorch_lightning as pl
 from pytorch_lightning import LightningModule,Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
+import pl_bolts.models.self_supervised.resnets as resnet
+
 from pl_bolts.optimizers.lars import LARS
 from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
 from pl_bolts.transforms.dataset_normalizations import cifar10_normalization, imagenet_normalization
@@ -118,7 +120,12 @@ class VICReg(LightningModule):
         self.total_steps = total_steps
   
     def init_backbone(self):
-        backbone, embedding_size = resnet.__dict__[self.arch](zero_init_residual=True)
+        # load resnet
+        model = resnet.__dict__[self.arch](first_conv=True, maxpool1=True, return_all_feature_maps=False)
+        # Removing last fully connected layer
+        backbone = torch.nn.Sequential(*(list(model.children())[:-1]))
+        # Getting the embedding size 
+        embedding_size = list(list(backbone.children())[-2][-1].children())[-1].num_features
         return backbone, embedding_size 
 
     def init_projector(self):
@@ -262,7 +269,7 @@ class VICReg(LightningModule):
         parser = ArgumentParser(parents=[parent_parser], description="Pretrain a resnet model with VICReg", add_help=False)
 
         # model architecture params
-        parser.add_argument("--arch", default="resnet34", type=str, help="architecture of the backbone encoder network")
+        parser.add_argument("--arch", default="resnet18", type=str, help="architecture of the backbone encoder network")
         parser.add_argument("--mlp_expander", default="2048-2048-2048",help='size and number of layers of the MLP expander head')
 
         # data
