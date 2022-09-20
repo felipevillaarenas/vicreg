@@ -91,12 +91,7 @@ class VICRegEvalDataTransform(VICRegTrainDataTransform):
             gaussian_blur (bool): Enable gaussian blur transform.
             normalize (array[array]): Custom normalization.
         """
-        super().__init__()
-
-        self.input_height = input_height
-        self.jitter_strength = jitter_strength
-        self.normalize = normalize
-        self.gaussian_blur = gaussian_blur
+        super().__init__(normalize=normalize, input_height=input_height, gaussian_blur=gaussian_blur, jitter_strength=jitter_strength)
 
         # replace online transform with eval time transform
         self.online_transform = transforms.Compose(

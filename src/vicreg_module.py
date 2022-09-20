@@ -30,46 +30,26 @@ class VICReg(LightningModule):
         - verify on imagenet
     
     Example::
-        model = VICReg(arch="resnet34",mlp_expander="2048-2048")
+        model = VICReg(arch="resnet18",
+                      maxpool1=False,
+                      first_conv=False,
+                      )
         dm = CIFAR10DataModule(num_workers=0)
         dm.train_transforms = VICRegTrainDataTransform(32)
         dm.val_transforms = VICRegEvalDataTransform(32)
         trainer = pl.Trainer()
         trainer.fit(model, datamodule=dm)
     
-    Train::
-        trainer = Trainer()
-        trainer.fit(model)
-    
-    CLI command::
-        # cifar10
-        python vicreg_module.py 
-            --accelerator gpu
-            --devices 1
-            --dataset cifar10
-            --arch resnet34
-            --mlp_expander 2048-2048-2048
-
-        # imagenet
-        python vicreg_module.py
-            --accelerator gpu
-            --devices 1
-            --dataset imagenet
-            --data_dir /path/to/imagenet/
-            --batch_size 256
-            --arch resnet50
-            --mlp_expander 8192-8192-8192
-    
     .. _VICReg: https://arxiv.org/pdf/2105.04906.pdf
     """
-
 
     def __init__(
         self, 
         arch: str,
-        mlp_expander: str,
-        first_conv: bool = True,
-        maxpool1: bool = True,
+        maxpool1: bool = False,
+        first_conv: bool = False,
+        proj_hidden_dim: int = 2048,
+        proj_output_dim: int = 2048,
         invariance_coeff: float = 25.0,
         variance_coeff: float = 25.0,
         covariance_coeff: float = 1.0,
@@ -84,7 +64,12 @@ class VICReg(LightningModule):
         """
         Args:
             arch: Architecture of the backbone encoder network
-            mlp_expander: size and number of layers of the MLP expander head
+            maxpool1: keep first conv same as the original resnet architecture,
+                if set to false it is replace by a kernel 3, stride 1 conv (cifar-10)
+            first_conv: keep first maxpool layer same as the original resnet architecture,
+                if set to false, first maxpool is turned off (cifar10, maybe stl10)
+            proj_hidden_dim: hidden dimension of the expander
+            proj_output_dim: output dimension of the expander
             invariance_coeff: invariance regularization loss coefficient
             variance_coeff: variance regularization loss coefficient
             covariance_coeff: covariance regularization loss coefficient
@@ -98,13 +83,15 @@ class VICReg(LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        # Init architecture params
+        # Init backbone params
         self.arch = arch
-        self.first_conv = first_conv
         self.maxpool1 = maxpool1
-        self.mlp_expander = mlp_expander
-        self.num_features = int(self.mlp_expander.split("-")[-1])
+        self.first_conv = first_conv 
         self.backbone, self.embedding_size = self.init_backbone()
+
+        # Init expander
+        self.proj_hidden_dim = proj_hidden_dim
+        self.proj_output_dim = proj_output_dim
         self.projector = self.init_projector()
 
         # Init loss params
@@ -113,7 +100,7 @@ class VICReg(LightningModule):
         self.covariance_coeff = covariance_coeff
 
         # Init optimizer params
-        self.optim = optimizer
+        self.optimizer = optimizer
         self.exclude_bn_bias = exclude_bn_bias
         self.weight_decay = weight_decay
         self.learning_rate = learning_rate
@@ -135,15 +122,16 @@ class VICReg(LightningModule):
         return backbone, embedding_size 
 
     def init_projector(self):
-        mlp_spec = f"{self.embedding_size}-{self.mlp_expander}"
-        layers = []
-        f = list(map(int, mlp_spec.split("-")))
-        for i in range(len(f) - 2):
-            layers.append(nn.Linear(f[i], f[i + 1]))
-            layers.append(nn.BatchNorm1d(f[i + 1]))
-            layers.append(nn.ReLU(True))
-        layers.append(nn.Linear(f[-2], f[-1], bias=False))
-        return nn.Sequential(*layers)
+        projector = nn.Sequential(
+            nn.Linear(self.embedding_size, self.proj_hidden_dim),
+            nn.BatchNorm1d(self.proj_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(self.proj_hidden_dim, self.proj_hidden_dim),
+            nn.BatchNorm1d(self.proj_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(self.proj_hidden_dim, self.proj_output_dim, bias=False),
+        )
+        return projector
     
     def forward(self, x):
         return self.backbone(x)
@@ -166,8 +154,8 @@ class VICReg(LightningModule):
         # Covariance Loss
         cov_z1 = (z1.T @ z1) / (z1.shape[0] - 1)
         cov_z2 = (z2.T @ z2) / (z2.shape[0] - 1)
-        covariance_loss_z1 = self.off_diagonal(cov_z1).pow_(2).sum().div(self.num_features) 
-        covariance_loss_z2 = self.off_diagonal(cov_z2).pow_(2).sum().div(self.num_features)
+        covariance_loss_z1 = self.off_diagonal(cov_z1).pow_(2).sum().div(self.proj_output_dim) 
+        covariance_loss_z2 = self.off_diagonal(cov_z2).pow_(2).sum().div(self.proj_output_dim)
         covariance_loss = covariance_loss_z1 +covariance_loss_z2
 
         # Loss function is a weighted average of the invariance, variance and covariance terms
@@ -247,7 +235,7 @@ class VICReg(LightningModule):
             params = self.parameters()
         
         # Optimizer
-        if self.optim == "lars":
+        if self.optimizer == "lars":
             optimizer = LARS(
                 params,
                 lr=self.learning_rate,
@@ -255,7 +243,7 @@ class VICReg(LightningModule):
                 weight_decay=self.weight_decay,
                 trust_coefficient=0.001,
             )
-        elif self.optim == "adam":
+        elif self.optimizer == "adam":
             optimizer = torch.optim.Adam(params, lr=self.learning_rate, weight_decay=self.weight_decay)
         
         # Scheduler
@@ -266,7 +254,7 @@ class VICReg(LightningModule):
             ),
             "interval": "step",
             "frequency": 1,
-        }
+          }
 
         return [optimizer], [scheduler]
     
@@ -274,9 +262,14 @@ class VICReg(LightningModule):
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], description="Pretrain a resnet model with VICReg", add_help=False)
 
-        # model architecture params
-        parser.add_argument("--arch", default="resnet34", type=str, help="architecture of the backbone encoder network")
-        parser.add_argument("--mlp_expander", default="2048-2048-2048",help='size and number of layers of the MLP expander head')
+        # backbone params
+        parser.add_argument("--arch", default="resnet18", type=str, help="architecture of the backbone encoder network")
+        parser.add_argument("--maxpool1", default=False, type=bool, help='keep first conv same as the original resnet architecture, if set to false it is replace by a kernel 3, stride 1 conv (cifar-10)')
+        parser.add_argument("--first_conv", default=False, type=bool, help='keep first maxpool layer same as the original resnet architecture, if set to false, first maxpool is turned off (cifar10, maybe stl10)')
+
+        # expander params
+        parser.add_argument("--proj_hidden_dim", default=2048, type=bool, help='hidden dimension of the expander')
+        parser.add_argument("--proj_output_dim", default=2048, type=bool, help='output dimension of the expander')
 
         # data
         parser.add_argument("--dataset", default="cifar10", type=str, help="cifar10, imagenet")
@@ -284,18 +277,20 @@ class VICReg(LightningModule):
         parser.add_argument("--batch_size", default=128, type=int, help="batch size per device")
 
         # transform params
-        parser.add_argument("--gaussian_blur", default=True, type=bool, help="add gaussian blur")
-        parser.add_argument("--jitter_strength", default=1.0, type=float, help="jitter strength")
+        parser.add_argument("--gaussian_blur", default=False, type=bool, help="add gaussian blur")
+        parser.add_argument("--jitter_strength", default=0.5, type=float, help="jitter strength")
 
         # Optim params
-        parser.add_argument("--optimizer", default="adam", type=str, help="choose between adam/lars")
+        parser.add_argument("--optimizer", default="lars", type=str, help="choose between adam/lars")
         parser.add_argument("--exclude_bn_bias", default=False, type=bool, help="exclude bn/bias from weight decay")
-        parser.add_argument("--weight_decay", default=1e-6, type=float, help="weight decay")
-        parser.add_argument("--learning_rate", default=0.001, type=float, help="base learning rate")
-        parser.add_argument("--max_epochs", default=1000, type=int, help="number of total epochs to run")
+        parser.add_argument("--weight_decay", default=1e-4, type=float, help="weight decay")
+        parser.add_argument("--learning_rate", default=0.2, type=float, help="base learning rate")
+        parser.add_argument("--max_epochs", default=800, type=int, help="number of total epochs to run")
+        parser.add_argument("--fp32", default=False, type=bool, help="precision definition, if it set as False the trainer uses 16-bits by default")
+
 
         # Scheduler
-        parser.add_argument("--warmup_epochs", default=0, type=int, help="number of warmup epochs")
+        parser.add_argument("--warmup_epochs", default=10, type=int, help="number of warmup epochs")
 
         # Loss
         parser.add_argument("--invariance-coeff", default=25.0, type=float, help='invariance regularization loss coefficient')
@@ -308,7 +303,7 @@ class VICReg(LightningModule):
         parser.add_argument("--num_workers", default=4, type=int, help="num of workers per device")
         parser.add_argument("--num_nodes", default=1, type=int, help="num of nodes")
 
-        # Online Finetune
+        # Online eval
         parser.add_argument("--online_ft", default=True, type=bool, help="enable online evaluator")
 
         return parser
@@ -402,6 +397,7 @@ def cli_main():
         num_nodes=args.num_nodes,
         strategy="ddp" if args.devices > 1 else None,
         sync_batchnorm=True if args.devices > 1 else False,
+        precision=32 if args.fp32 else 16,
         callbacks=callbacks,
     )
 
