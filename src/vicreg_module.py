@@ -13,7 +13,7 @@ import pl_bolts.models.self_supervised.resnets as resnet
 
 from pl_bolts.optimizers.lars import LARS
 from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
-from pl_bolts.transforms.dataset_normalizations import cifar10_normalization, imagenet_normalization
+from pl_bolts.transforms.dataset_normalizations import cifar10_normalization, stl10_normalization, imagenet_normalization
 
 
 class VICReg(LightningModule):
@@ -316,7 +316,7 @@ class VICReg(LightningModule):
 
 def cli_main():
     from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
-    from pl_bolts.datamodules import CIFAR10DataModule, ImagenetDataModule
+    from pl_bolts.datamodules import CIFAR10DataModule, STL10DataModule, ImagenetDataModule
     from transforms import VICRegTrainDataTransform, VICRegEvalDataTransform
 
     # model args
@@ -333,6 +333,17 @@ def cli_main():
         args.num_classes=dm.num_classes
         args.num_samples = dm.num_samples
         normalization = cifar10_normalization()
+
+    elif args.dataset == "stl10":
+        dm = STL10DataModule(data_dir=args.data_dir, batch_size=args.batch_size, num_workers=args.num_workers)
+        dm.train_dataloader = dm.train_dataloader_mixed
+        dm.val_dataloader = dm.val_dataloader_mixed
+
+        # Transform params defined by the dataset type
+        args.input_height = dm.dims[-1]
+        args.num_classes=dm.num_classes
+        args.num_samples = dm.num_samples
+        normalization = stl10_normalization()
         
     elif args.dataset=="imagenet":
         dm = ImagenetDataModule(data_dir=args.data_dir, batch_size=args.batch_size, num_workers=args.num_workers)
