@@ -68,6 +68,8 @@ class VICReg(LightningModule):
         self, 
         arch: str,
         mlp_expander: str,
+        first_conv: bool = True,
+        maxpool1: bool = True,
         invariance_coeff: float = 25.0,
         variance_coeff: float = 25.0,
         covariance_coeff: float = 1.0,
@@ -98,6 +100,8 @@ class VICReg(LightningModule):
 
         # Init architecture params
         self.arch = arch
+        self.first_conv = first_conv
+        self.maxpool1 = maxpool1
         self.mlp_expander = mlp_expander
         self.num_features = int(self.mlp_expander.split("-")[-1])
         self.backbone, self.embedding_size = self.init_backbone()
@@ -120,7 +124,7 @@ class VICReg(LightningModule):
   
     def init_backbone(self):
         # load resnet
-        model = resnet.__dict__[self.arch](first_conv=True, maxpool1=True, return_all_feature_maps=False)
+        model = resnet.__dict__[self.arch](first_conv=self.first_conv, maxpool1=self.maxpool1, return_all_feature_maps=False)
 
         # Getting the embedding size from the last Residual Block
         embedding_size = list(list(model.children())[-3][-1].children())[-1].num_features
