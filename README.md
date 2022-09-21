@@ -34,10 +34,21 @@ Here are some examples!
 **Python**
 
 ```python
-model = VICReg(arch="resnet34",mlp_expander="2048-2048-2048")
-        dm = CIFAR10DataModule(num_workers=0)
-        dm.train_transforms = VICRegTrainDataTransform(32)
-        dm.val_transforms = VICRegEvalDataTransform(32)
+model = VICReg( arch="resnet18", 
+                maxpool1=False, 
+                first_conv=False, 
+                proj_hidden_dim=2048, 
+                proj_output_dim=2048,
+                invariance_coeff=25.0,
+                variance_coeff=25.0,
+                covariance_coeff=1.0,
+                optimizer="lars",
+                learning_rate=0.3,
+                warmup_steps=10)
+
+        dm = CIFAR10DataModule(batch_size=128, num_workers=0)
+        dm.train_transforms = VICRegTrainDataTransform(input_height=32, gaussian_blur=False, jitter_strength=1.0)
+        dm.val_transforms = VICRegEvalDataTransform(input_height=32, gaussian_blur=False, jitter_strength=1.0)
         trainer = pl.Trainer()
         trainer.fit(model, datamodule=dm)
 ```
@@ -46,24 +57,45 @@ model = VICReg(arch="resnet34",mlp_expander="2048-2048-2048")
 
 ```
 python vicreg_module.py 
-            --accelerator gpu
-            --devices 1
-            --dataset cifar10
-            --arch resnet34
-            --mlp_expander 2048-2048-2048
+                --accelerator gpu
+                --devices 1
+                --dataset cifar10
+                --data_dir /path/to/cifar/
+                --batch_size 128
+                --arch resnet18
+                --maxpool1 False
+                --first_conv False, 
+                --proj_hidden_dim 2048
+                --proj_output_dim 2048
+                --invariance_coeff 25.0
+                --variance_coeff 25.0
+                --covariance_coeff 1.0
+                --optimizer lars
+                --learning_rate 0.3
+                --warmup_steps 10
+
 ```
 
 **Command line interface** [`imagenet`]
     
 ```
 python vicreg_module.py
-            --accelerator gpu
-            --devices 1
-            --dataset imagenet
-            --data_dir /path/to/imagenet/
-            --batch_size 256
-            --arch resnet50
-            --mlp_expander 8192-8192-8192
+                --accelerator gpu
+                --devices 1
+                --dataset imagenet
+                --data_dir /path/to/imagenet/
+                --batch_size 512
+                --arch resnet50
+                --maxpool1 True
+                --first_conv True, 
+                --proj_hidden_dim 8192
+                --proj_output_dim 8192
+                --invariance_coeff 25.0
+                --variance_coeff 25.0
+                --covariance_coeff 1.0
+                --optimizer lars
+                --learning_rate 0.6
+                --warmup_steps 10
 ```
 
 ### Check the Colab version

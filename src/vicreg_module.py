@@ -284,7 +284,7 @@ class VICReg(LightningModule):
         parser.add_argument("--optimizer", default="lars", type=str, help="choose between adam/lars")
         parser.add_argument("--exclude_bn_bias", default=False, type=bool, help="exclude bn/bias from weight decay")
         parser.add_argument("--weight_decay", default=1e-4, type=float, help="weight decay")
-        parser.add_argument("--learning_rate", default=0.2, type=float, help="base learning rate")
+        parser.add_argument("--learning_rate", default=0.3, type=float, help="base learning rate")
         parser.add_argument("--max_epochs", default=800, type=int, help="number of total epochs to run")
         parser.add_argument("--fp32", default=False, type=bool, help="precision definition, if it set as False the trainer uses 16-bits by default")
 
