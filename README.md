@@ -34,34 +34,36 @@ Here are some examples!
 **Python**
 
 ```python
-model = VICReg( arch="resnet18", 
-                maxpool1=False, 
-                first_conv=False, 
-                proj_hidden_dim=2048, 
-                proj_output_dim=2048,
-                invariance_coeff=25.0,
-                variance_coeff=25.0,
-                covariance_coeff=1.0,
-                optimizer="lars",
-                learning_rate=0.3,
-                warmup_steps=10)
+model = VICReg( 
+        arch="resnet18", 
+        maxpool1=False, 
+        first_conv=False, 
+        proj_hidden_dim=2048, 
+        proj_output_dim=2048,
+        invariance_coeff=25.0,
+        variance_coeff=25.0,
+        covariance_coeff=1.0,
+        optimizer="lars",
+        learning_rate=0.3,
+        warmup_steps=10
+        )
 
-        dm = CIFAR10DataModule(batch_size=128, num_workers=0)
+dm = CIFAR10DataModule(batch_size=128, num_workers=0)
 
-        dm.train_transforms = VICRegTrainDataTransform(
-                input_height=32, 
-                gaussian_blur=False, 
-                jitter_strength=1.0
-                )
+dm.train_transforms = VICRegTrainDataTransform(
+        input_height=32, 
+        gaussian_blur=False, 
+        jitter_strength=1.0
+        )
 
-        dm.val_transforms = VICRegEvalDataTransform(
-                input_height=32, 
-                gaussian_blur=False, 
-                jitter_strength=1.0
-                )
+dm.val_transforms = VICRegEvalDataTransform(
+        input_height=32, 
+        gaussian_blur=False, 
+        jitter_strength=1.0
+        )
 
-        trainer = pl.Trainer()
-        trainer.fit(model, datamodule=dm)
+trainer = pl.Trainer()
+trainer.fit(model, datamodule=dm)
 ```
 
 **Command line interface** [`cifar10`]
