@@ -49,19 +49,7 @@ class VICRegTrainDataTransform:
                 transforms.RandomApply([self.color_jitter], p=0.8),
                 transforms.RandomGrayscale(p=0.2),
                 GaussianBlur(p=1.0, active=self.gaussian_blur),
-                Solarization(p=0.0),
-                self.final_transform   
-            ]
-        )
-
-        self.prime_transform = transforms.Compose(
-            [
-                transforms.RandomResizedCrop(size=self.input_height, interpolation=transforms.InterpolationMode.BICUBIC),
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomApply([self.color_jitter], p=0.8),
-                transforms.RandomGrayscale(p=0.2),
-                GaussianBlur(p=1.0, active=self.gaussian_blur),
-                Solarization(p=0.2),
+                Solarization(p=0.1),
                 self.final_transform   
             ]
         )
@@ -72,7 +60,7 @@ class VICRegTrainDataTransform:
         )
 
     def __call__(self, sample):
-        return self.transform(sample), self.prime_transform(sample), self.online_transform(sample)
+        return self.transform(sample), self.transform(sample), self.online_transform(sample)
 
 
 class VICRegEvalDataTransform(VICRegTrainDataTransform):
