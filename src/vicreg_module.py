@@ -278,7 +278,7 @@ class VICReg(LightningModule):
 
         # transform params
         parser.add_argument("--gaussian_blur", default=False, type=bool, help="add gaussian blur")
-        parser.add_argument("--jitter_strength", default=0.5, type=float, help="jitter strength")
+        parser.add_argument("--jitter_strength", default=1.0, type=float, help="jitter strength")
 
         # Optim params
         parser.add_argument("--optimizer", default="lars", type=str, help="choose between adam/lars")
