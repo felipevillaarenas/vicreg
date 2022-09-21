@@ -47,8 +47,19 @@ model = VICReg( arch="resnet18",
                 warmup_steps=10)
 
         dm = CIFAR10DataModule(batch_size=128, num_workers=0)
-        dm.train_transforms = VICRegTrainDataTransform(input_height=32, gaussian_blur=False, jitter_strength=1.0)
-        dm.val_transforms = VICRegEvalDataTransform(input_height=32, gaussian_blur=False, jitter_strength=1.0)
+
+        dm.train_transforms = VICRegTrainDataTransform(
+                input_height=32, 
+                gaussian_blur=False, 
+                jitter_strength=1.0
+                )
+
+        dm.val_transforms = VICRegEvalDataTransform(
+                input_height=32, 
+                gaussian_blur=False, 
+                jitter_strength=1.0
+                )
+
         trainer = pl.Trainer()
         trainer.fit(model, datamodule=dm)
 ```
@@ -70,7 +81,7 @@ python vicreg_module.py
                 --invariance_coeff 25.0
                 --variance_coeff 25.0
                 --covariance_coeff 1.0
-                --optimizer lars
+                --optimizer adam
                 --learning_rate 0.3
                 --warmup_steps 10
 
