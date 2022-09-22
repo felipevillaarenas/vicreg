@@ -135,4 +135,4 @@ data/image/*
 lightning_logs/*
 
 #vscode conf
-.vscode/*
+.vscode
