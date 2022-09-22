@@ -53,7 +53,7 @@ class VICReg(LightningModule):
         invariance_coeff: float = 25.0,
         variance_coeff: float = 25.0,
         covariance_coeff: float = 1.0,
-        optimizer: str = "adam",
+        optimizer: str = "lars",
         exclude_bn_bias: bool = False,
         weight_decay: float = 1e-6,
         learning_rate: float = 0.001,
