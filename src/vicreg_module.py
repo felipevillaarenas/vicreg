@@ -20,15 +20,15 @@ class VICReg(LightningModule):
     """PyTorch Lightning implementation of VICReg: Variance-Invariance-Covariance Regularization For Self-Supervised Learning_
 
     Paper authors: Adrien Bardes, Jean Ponce and Yann LeCun.
-    
+
     Model implemented by:
         - `Luis Felipe Villa-Arenas <https://github.com/felipevillaarenas/vicreg>`_
     .. warning:: Work in progress. This implementation is still being verified.
-    
+
     TODOs:
         - verify on CIFAR-10
         - verify on imagenet
-    
+
     Example::
         model = VICReg(arch="resnet18",
                       maxpool1=False,
@@ -39,13 +39,13 @@ class VICReg(LightningModule):
         dm.val_transforms = VICRegEvalDataTransform(32)
         trainer = pl.Trainer()
         trainer.fit(model, datamodule=dm)
-    
+
     .. _VICReg: https://arxiv.org/pdf/2105.04906.pdf
     """
 
 
     def __init__(
-        self, 
+        self,
         arch: str,
         mlp_expander: str,
         maxpool1: bool = True,
@@ -85,7 +85,7 @@ class VICReg(LightningModule):
         # Init backbone params
         self.arch = arch
         self.maxpool1 = maxpool1
-        self.first_conv = first_conv 
+        self.first_conv = first_conv
         self.backbone, self.embedding_size = self.init_backbone()
 
         # Init expander
@@ -107,15 +107,15 @@ class VICReg(LightningModule):
         # Init scheduler params
         self.warmup_steps = warmup_steps
         self.total_steps = total_steps
-  
+
     def init_backbone(self):
         # load resnet
         backbone = resnet.__dict__[self.arch](first_conv=self.first_conv, maxpool1=self.maxpool1, return_all_feature_maps=False)
-        
+
         # Getting the embedding size
         embedding_size = backbone.fc.in_features
 
-        return backbone, embedding_size 
+        return backbone, embedding_size
 
     def init_projector(self):
         mlp_spec = f"{self.embedding_size}-{self.mlp_expander}"
@@ -127,7 +127,7 @@ class VICReg(LightningModule):
             layers.append(nn.ReLU(True))
         layers.append(nn.Linear(f[-2], f[-1], bias=False))
         return nn.Sequential(*layers)
-    
+
     def forward(self, x):
         # Selecting last element. Bolt ResNet return a list
         return self.backbone(x)[-1]
@@ -150,7 +150,7 @@ class VICReg(LightningModule):
         # Covariance Loss
         cov_z1 = (z1.T @ z1) / (z1.shape[0] - 1)
         cov_z2 = (z2.T @ z2) / (z2.shape[0] - 1)
-        covariance_loss_z1 = self.off_diagonal(cov_z1).pow_(2).sum().div(self.num_features_expander) 
+        covariance_loss_z1 = self.off_diagonal(cov_z1).pow_(2).sum().div(self.num_features_expander)
         covariance_loss_z2 = self.off_diagonal(cov_z2).pow_(2).sum().div(self.num_features_expander)
         covariance_loss = covariance_loss_z1 +covariance_loss_z2
 
@@ -186,20 +186,20 @@ class VICReg(LightningModule):
         loss, invariance_loss, variance_loss, covariance_loss = self.shared_step(batch, batch_idx)
 
         # log results
-        self.log_dict({"train_loss": loss, 
-                       "train_invariance_loss": invariance_loss, 
-                       "train_variance_loss": variance_loss, 
+        self.log_dict({"train_loss": loss,
+                       "train_invariance_loss": invariance_loss,
+                       "train_variance_loss": variance_loss,
                        "train_covariance_loss": covariance_loss
                        })
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss, invariance_loss, variance_loss, covariance_loss = self.shared_step(batch, batch_idx)
-        
+
         # log results
-        self.log_dict({"val_loss": loss, 
-                       "val_invariance_loss": invariance_loss, 
-                       "val_variance_loss": variance_loss, 
+        self.log_dict({"val_loss": loss,
+                       "val_invariance_loss": invariance_loss,
+                       "val_variance_loss": variance_loss,
                        "val_covariance_loss": covariance_loss
                        })
         return loss
@@ -229,7 +229,7 @@ class VICReg(LightningModule):
             params = self.exclude_from_wt_decay(self.named_parameters(), weight_decay=self.weight_decay)
         else:
             params = self.parameters()
-        
+
         # Optimizer
         if self.optimizer == "lars":
             optimizer = LARS(
@@ -241,7 +241,7 @@ class VICReg(LightningModule):
             )
         elif self.optimizer == "adam":
             optimizer = torch.optim.Adam(params, lr=self.learning_rate, weight_decay=self.weight_decay)
-        
+
         # Scheduler
         scheduler = {
             "scheduler": torch.optim.lr_scheduler.LambdaLR(
@@ -253,7 +253,7 @@ class VICReg(LightningModule):
           }
 
         return [optimizer], [scheduler]
-    
+
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = ArgumentParser(parents=[parent_parser], description="Pretrain a resnet model with VICReg", add_help=False)
@@ -313,10 +313,10 @@ def cli_main():
     parser = VICReg.add_model_specific_args(parser)
     args = parser.parse_args()
 
-    # Dataset 
+    # Dataset
     if args.dataset=="cifar10":
         dm = CIFAR10DataModule(data_dir=args.data_dir, batch_size=args.batch_size, num_workers=args.num_workers)
-        
+
         # Transform params defined by the dataset type
         args.input_height = dm.dims[-1]
         args.num_classes=dm.num_classes
@@ -333,7 +333,7 @@ def cli_main():
         args.num_classes=dm.num_classes
         args.num_samples = dm.num_samples
         normalization = stl10_normalization()
-        
+
     elif args.dataset=="imagenet":
         dm = ImagenetDataModule(data_dir=args.data_dir, batch_size=args.batch_size, num_workers=args.num_workers)
 
@@ -342,7 +342,7 @@ def cli_main():
         args.num_classes =dm.num_classes
         args.num_samples = dm.num_samples
         normalization = imagenet_normalization()
-    
+
     # Data Augmentations
     dm.train_transforms = VICRegTrainDataTransform(
         input_height=args.input_height,
@@ -357,7 +357,7 @@ def cli_main():
         jitter_strength=args.jitter_strength,
         normalize=normalization,
     )
-    
+
     # Distributed params
     args.global_batch_size = args.num_nodes * args.devices * args.batch_size if args.devices > 0 else args.batch_size
     args.train_iters_per_epoch = args.num_samples // args.global_batch_size

@@ -15,7 +15,7 @@
 
 
 ## 📌&nbsp;&nbsp;Introduction
-This repository provides a PyTorch Lighting implementation for VICReg, as described in the paper [VICReg: Variance-Invariance-Covariance Regularization For Self-Supervised Learning](https://arxiv.org/pdf/2105.04906.pdf). This repo is inspired on the original repository of Meta AI. 
+This repository provides a PyTorch Lighting implementation for VICReg, as described in the paper [VICReg: Variance-Invariance-Covariance Regularization For Self-Supervised Learning](https://arxiv.org/pdf/2105.04906.pdf). This repo is inspired on the original repository of Meta AI.
 
 > This module was written with the style used in [Lightning Bolts](https://www.pytorchlightning.ai/bolts) for other SOTA Self-Supervised models.
 
@@ -34,11 +34,11 @@ Here are some examples!
 **Python**
 
 ```python
-model = VICReg( 
-        arch="resnet18", 
-        maxpool1=False, 
-        first_conv=False, 
-        mlp_expander='2048-2048-2048', 
+model = VICReg(
+        arch="resnet18",
+        maxpool1=False,
+        first_conv=False,
+        mlp_expander='2048-2048-2048',
         invariance_coeff=25.0,
         variance_coeff=25.0,
         covariance_coeff=1.0,
@@ -50,14 +50,14 @@ model = VICReg(
 dm = CIFAR10DataModule(batch_size=128, num_workers=0)
 
 dm.train_transforms = VICRegTrainDataTransform(
-        input_height=32, 
-        gaussian_blur=False, 
+        input_height=32,
+        gaussian_blur=False,
         jitter_strength=1.0
         )
 
 dm.val_transforms = VICRegEvalDataTransform(
-        input_height=32, 
-        gaussian_blur=False, 
+        input_height=32,
+        gaussian_blur=False,
         jitter_strength=1.0
         )
 
@@ -68,7 +68,7 @@ trainer.fit(model, datamodule=dm)
 **Command line interface** [`cifar10`]
 
 ```
-python vicreg_module.py 
+python vicreg_module.py
                 --accelerator gpu
                 --devices 1
                 --dataset cifar10
@@ -76,7 +76,7 @@ python vicreg_module.py
                 --batch_size 128
                 --arch resnet18
                 --maxpool1 False
-                --first_conv False, 
+                --first_conv False,
                 --mlp_expander 2048-2048-2048
                 --invariance_coeff 25.0
                 --variance_coeff 25.0
@@ -88,7 +88,7 @@ python vicreg_module.py
 ```
 
 **Command line interface** [`imagenet`]
-    
+
 ```
 python vicreg_module.py
                 --accelerator gpu
@@ -98,7 +98,7 @@ python vicreg_module.py
                 --batch_size 512
                 --arch resnet50
                 --maxpool1 True
-                --first_conv True, 
+                --first_conv True,
                 --mlp_expander 8192-8192-8192
                 --invariance_coeff 25.0
                 --variance_coeff 25.0

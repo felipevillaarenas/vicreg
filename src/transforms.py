@@ -7,10 +7,10 @@ class VICRegTrainDataTransform:
     """Transforms for VICReg implemented as in paper's author repository.
     """
     def __init__(
-        self, 
-        input_height: int = 224, 
+        self,
+        input_height: int = 224,
         gaussian_blur: bool = True,
-        jitter_strength: float = 1, 
+        jitter_strength: float = 1,
         normalize=None
         ):
         """
@@ -28,10 +28,10 @@ class VICRegTrainDataTransform:
         self.gaussian_blur = gaussian_blur
 
         self.color_jitter = transforms.ColorJitter(
-            
-            brightness=0.4*self.jitter_strength, 
-            contrast=0.4*self.jitter_strength, 
-            saturation=0.2*self.jitter_strength, 
+
+            brightness=0.4*self.jitter_strength,
+            contrast=0.4*self.jitter_strength,
+            saturation=0.2*self.jitter_strength,
             hue=0.1*self.jitter_strength
         )
 
@@ -50,7 +50,7 @@ class VICRegTrainDataTransform:
                 transforms.RandomGrayscale(p=0.2),
                 GaussianBlur(p=1.0, active=self.gaussian_blur),
                 Solarization(p=0.1),
-                self.final_transform   
+                self.final_transform
             ]
         )
 
@@ -66,10 +66,10 @@ class VICRegTrainDataTransform:
 class VICRegEvalDataTransform(VICRegTrainDataTransform):
     """ Transforms for VICReg implemented as in paper's author repository."""
     def __init__(
-        self, 
-        input_height: int = 224, 
+        self,
+        input_height: int = 224,
         gaussian_blur: bool = True,
-        jitter_strength: float = 1, 
+        jitter_strength: float = 1,
         normalize=None
         ):
         """
