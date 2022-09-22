@@ -16,27 +16,6 @@ from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
 from pl_bolts.transforms.dataset_normalizations import cifar10_normalization, stl10_normalization, imagenet_normalization
 
 
-from argparse import ArgumentParser
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-import pytorch_lightning as pl
-
-from pytorch_lightning import LightningModule,Trainer
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-
-import pl_bolts.models.self_supervised.resnets as resnet
-
-from pl_bolts.optimizers.lars import LARS
-from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
-from pl_bolts.transforms.dataset_normalizations import cifar10_normalization, stl10_normalization, imagenet_normalization
-
-from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
-from pl_bolts.datamodules import CIFAR10DataModule, STL10DataModule, ImagenetDataModule
-
-
 class VICReg(LightningModule):
     """PyTorch Lightning implementation of VICReg: Variance-Invariance-Covariance Regularization For Self-Supervised Learning_
 
