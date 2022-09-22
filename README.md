@@ -38,8 +38,7 @@ model = VICReg(
         arch="resnet18", 
         maxpool1=False, 
         first_conv=False, 
-        proj_hidden_dim=2048, 
-        proj_output_dim=2048,
+        mlp_expander='2048-2048-2048', 
         invariance_coeff=25.0,
         variance_coeff=25.0,
         covariance_coeff=1.0,
@@ -78,8 +77,7 @@ python vicreg_module.py
                 --arch resnet18
                 --maxpool1 False
                 --first_conv False, 
-                --proj_hidden_dim 2048
-                --proj_output_dim 2048
+                --mlp_expander 2048-2048-2048
                 --invariance_coeff 25.0
                 --variance_coeff 25.0
                 --covariance_coeff 1.0
@@ -101,8 +99,7 @@ python vicreg_module.py
                 --arch resnet50
                 --maxpool1 True
                 --first_conv True, 
-                --proj_hidden_dim 8192
-                --proj_output_dim 8192
+                --mlp_expander 8192-8192-8192
                 --invariance_coeff 25.0
                 --variance_coeff 25.0
                 --covariance_coeff 1.0

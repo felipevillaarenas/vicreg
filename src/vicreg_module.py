@@ -16,6 +16,27 @@ from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
 from pl_bolts.transforms.dataset_normalizations import cifar10_normalization, stl10_normalization, imagenet_normalization
 
 
+from argparse import ArgumentParser
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+import pytorch_lightning as pl
+
+from pytorch_lightning import LightningModule,Trainer
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+
+import pl_bolts.models.self_supervised.resnets as resnet
+
+from pl_bolts.optimizers.lars import LARS
+from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
+from pl_bolts.transforms.dataset_normalizations import cifar10_normalization, stl10_normalization, imagenet_normalization
+
+from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
+from pl_bolts.datamodules import CIFAR10DataModule, STL10DataModule, ImagenetDataModule
+
+
 class VICReg(LightningModule):
     """PyTorch Lightning implementation of VICReg: Variance-Invariance-Covariance Regularization For Self-Supervised Learning_
 
@@ -43,13 +64,13 @@ class VICReg(LightningModule):
     .. _VICReg: https://arxiv.org/pdf/2105.04906.pdf
     """
 
+
     def __init__(
         self, 
         arch: str,
-        maxpool1: bool = False,
-        first_conv: bool = False,
-        proj_hidden_dim: int = 2048,
-        proj_output_dim: int = 2048,
+        mlp_expander: str,
+        maxpool1: bool = True,
+        first_conv: bool = True,
         invariance_coeff: float = 25.0,
         variance_coeff: float = 25.0,
         covariance_coeff: float = 1.0,
@@ -64,12 +85,11 @@ class VICReg(LightningModule):
         """
         Args:
             arch: Architecture of the backbone encoder network
+            mlp_expander: size and number of layers of the MLP expander head
             maxpool1: keep first conv same as the original resnet architecture,
                 if set to false it is replace by a kernel 3, stride 1 conv (cifar-10)
             first_conv: keep first maxpool layer same as the original resnet architecture,
                 if set to false, first maxpool is turned off (cifar10, maybe stl10)
-            proj_hidden_dim: hidden dimension of the expander
-            proj_output_dim: output dimension of the expander
             invariance_coeff: invariance regularization loss coefficient
             variance_coeff: variance regularization loss coefficient
             covariance_coeff: covariance regularization loss coefficient
@@ -90,8 +110,8 @@ class VICReg(LightningModule):
         self.backbone, self.embedding_size = self.init_backbone()
 
         # Init expander
-        self.proj_hidden_dim = proj_hidden_dim
-        self.proj_output_dim = proj_output_dim
+        self.mlp_expander = mlp_expander
+        self.num_features_expander = int(self.mlp_expander.split("-")[-1])
         self.projector = self.init_projector()
 
         # Init loss params
@@ -111,30 +131,27 @@ class VICReg(LightningModule):
   
     def init_backbone(self):
         # load resnet
-        model = resnet.__dict__[self.arch](first_conv=self.first_conv, maxpool1=self.maxpool1, return_all_feature_maps=False)
-
-        # Getting the embedding size from the last Residual Block
-        embedding_size = list(list(model.children())[-3][-1].children())[-1].num_features
-
-        # Replacing last fully connected layer with Fatten layer    
-        backbone = torch.nn.Sequential(*(list(model.children())[:-1] + [nn.Flatten()]))
+        backbone = resnet.__dict__[self.arch](first_conv=self.first_conv, maxpool1=self.maxpool1, return_all_feature_maps=False)
+        
+        # Getting the embedding size
+        embedding_size = backbone.fc.in_features
 
         return backbone, embedding_size 
 
     def init_projector(self):
-        projector = nn.Sequential(
-            nn.Linear(self.embedding_size, self.proj_hidden_dim),
-            nn.BatchNorm1d(self.proj_hidden_dim),
-            nn.ReLU(),
-            nn.Linear(self.proj_hidden_dim, self.proj_hidden_dim),
-            nn.BatchNorm1d(self.proj_hidden_dim),
-            nn.ReLU(),
-            nn.Linear(self.proj_hidden_dim, self.proj_output_dim, bias=False),
-        )
-        return projector
+        mlp_spec = f"{self.embedding_size}-{self.mlp_expander}"
+        layers = []
+        f = list(map(int, mlp_spec.split("-")))
+        for i in range(len(f) - 2):
+            layers.append(nn.Linear(f[i], f[i + 1]))
+            layers.append(nn.BatchNorm1d(f[i + 1]))
+            layers.append(nn.ReLU(True))
+        layers.append(nn.Linear(f[-2], f[-1], bias=False))
+        return nn.Sequential(*layers)
     
     def forward(self, x):
-        return self.backbone(x)
+        # Selecting last element. Bolt ResNet return a list
+        return self.backbone(x)[-1]
 
     def vigreg_loss(self, z1, z2):
         # invariance Loss
@@ -154,8 +171,8 @@ class VICReg(LightningModule):
         # Covariance Loss
         cov_z1 = (z1.T @ z1) / (z1.shape[0] - 1)
         cov_z2 = (z2.T @ z2) / (z2.shape[0] - 1)
-        covariance_loss_z1 = self.off_diagonal(cov_z1).pow_(2).sum().div(self.proj_output_dim) 
-        covariance_loss_z2 = self.off_diagonal(cov_z2).pow_(2).sum().div(self.proj_output_dim)
+        covariance_loss_z1 = self.off_diagonal(cov_z1).pow_(2).sum().div(self.num_features_expander) 
+        covariance_loss_z2 = self.off_diagonal(cov_z2).pow_(2).sum().div(self.num_features_expander)
         covariance_loss = covariance_loss_z1 +covariance_loss_z2
 
         # Loss function is a weighted average of the invariance, variance and covariance terms
@@ -268,8 +285,7 @@ class VICReg(LightningModule):
         parser.add_argument("--first_conv", default=False, type=bool, help='keep first maxpool layer same as the original resnet architecture, if set to false, first maxpool is turned off (cifar10, maybe stl10)')
 
         # expander params
-        parser.add_argument("--proj_hidden_dim", default=2048, type=bool, help='hidden dimension of the expander')
-        parser.add_argument("--proj_output_dim", default=2048, type=bool, help='output dimension of the expander')
+        parser.add_argument("--mlp_expander", default='2048-2048-2048', type=str, help='size and number of layers of the MLP expander head')
 
         # data
         parser.add_argument("--dataset", default="cifar10", type=str, help="cifar10, imagenet")
@@ -288,7 +304,6 @@ class VICReg(LightningModule):
         parser.add_argument("--max_epochs", default=800, type=int, help="number of total epochs to run")
         parser.add_argument("--fp32", default=False, type=bool, help="precision definition, if it set as False the trainer uses 16-bits by default")
 
-
         # Scheduler
         parser.add_argument("--warmup_epochs", default=10, type=int, help="number of warmup epochs")
 
@@ -300,7 +315,7 @@ class VICReg(LightningModule):
         # Trainer & Infrastructure
         parser.add_argument("--accelerator", default="auto", type=str, help="supports passing different accelerator types ('cpu', 'gpu', 'tpu', 'ipu', 'auto') as well as custom accelerator instances")
         parser.add_argument("--devices", default=1, type=int, help="number of devices to train on")
-        parser.add_argument("--num_workers", default=4, type=int, help="num of workers per device")
+        parser.add_argument("--num_workers", default=0, type=int, help="num of workers per device")
         parser.add_argument("--num_nodes", default=1, type=int, help="num of nodes")
 
         # Online eval
@@ -386,7 +401,7 @@ def cli_main():
         )
 
     lr_monitor = LearningRateMonitor(logging_interval="step")
-    model_checkpoint = ModelCheckpoint(save_last=True, save_top_k=1, monitor="val_loss")
+    model_checkpoint = ModelCheckpoint(save_last=True, save_top_k=1, monitor="online_val_loss")
     callbacks = [model_checkpoint, online_evaluator] if args.online_ft else [model_checkpoint]
     callbacks.append(lr_monitor)
 
