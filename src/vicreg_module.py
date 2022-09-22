@@ -1,19 +1,18 @@
 from argparse import ArgumentParser
 
+import pl_bolts.models.self_supervised.resnets as resnet
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-import pytorch_lightning as pl
-
-from pytorch_lightning import LightningModule,Trainer
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-
-import pl_bolts.models.self_supervised.resnets as resnet
-
 from pl_bolts.optimizers.lars import LARS
 from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
-from pl_bolts.transforms.dataset_normalizations import cifar10_normalization, stl10_normalization, imagenet_normalization
+from pl_bolts.transforms.dataset_normalizations import (
+    cifar10_normalization,
+    imagenet_normalization,
+    stl10_normalization,
+)
+from pytorch_lightning import LightningModule, Trainer
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
 
 class VICReg(LightningModule):
@@ -43,7 +42,6 @@ class VICReg(LightningModule):
     .. _VICReg: https://arxiv.org/pdf/2105.04906.pdf
     """
 
-
     def __init__(
         self,
         arch: str,
@@ -57,10 +55,10 @@ class VICReg(LightningModule):
         exclude_bn_bias: bool = False,
         weight_decay: float = 1e-6,
         learning_rate: float = 0.001,
-        warmup_steps:int = -1,
-        total_steps:int = -1,
-        **kwargs
-        ):
+        warmup_steps: int = -1,
+        total_steps: int = -1,
+        **kwargs,
+    ):
         """
         Args:
             arch: Architecture of the backbone encoder network
@@ -110,7 +108,9 @@ class VICReg(LightningModule):
 
     def init_backbone(self):
         # load resnet
-        backbone = resnet.__dict__[self.arch](first_conv=self.first_conv, maxpool1=self.maxpool1, return_all_feature_maps=False)
+        backbone = resnet.__dict__[self.arch](
+            first_conv=self.first_conv, maxpool1=self.maxpool1, return_all_feature_maps=False
+        )
 
         # Getting the embedding size
         embedding_size = backbone.fc.in_features
@@ -152,13 +152,13 @@ class VICReg(LightningModule):
         cov_z2 = (z2.T @ z2) / (z2.shape[0] - 1)
         covariance_loss_z1 = self.off_diagonal(cov_z1).pow_(2).sum().div(self.num_features_expander)
         covariance_loss_z2 = self.off_diagonal(cov_z2).pow_(2).sum().div(self.num_features_expander)
-        covariance_loss = covariance_loss_z1 +covariance_loss_z2
+        covariance_loss = covariance_loss_z1 + covariance_loss_z2
 
         # Loss function is a weighted average of the invariance, variance and covariance terms
         loss = (
-            self.invariance_coeff * invariance_loss +
-            self.variance_coeff * variance_loss +
-            self.covariance_coeff * covariance_loss
+            self.invariance_coeff * invariance_loss
+            + self.variance_coeff * variance_loss
+            + self.covariance_coeff * covariance_loss
         )
         return loss, invariance_loss, variance_loss, covariance_loss
 
@@ -186,43 +186,49 @@ class VICReg(LightningModule):
         loss, invariance_loss, variance_loss, covariance_loss = self.shared_step(batch, batch_idx)
 
         # log results
-        self.log_dict({"train_loss": loss,
-                       "train_invariance_loss": invariance_loss,
-                       "train_variance_loss": variance_loss,
-                       "train_covariance_loss": covariance_loss
-                       })
+        self.log_dict(
+            {
+                "train_loss": loss,
+                "train_invariance_loss": invariance_loss,
+                "train_variance_loss": variance_loss,
+                "train_covariance_loss": covariance_loss,
+            }
+        )
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss, invariance_loss, variance_loss, covariance_loss = self.shared_step(batch, batch_idx)
 
         # log results
-        self.log_dict({"val_loss": loss,
-                       "val_invariance_loss": invariance_loss,
-                       "val_variance_loss": variance_loss,
-                       "val_covariance_loss": covariance_loss
-                       })
+        self.log_dict(
+            {
+                "val_loss": loss,
+                "val_invariance_loss": invariance_loss,
+                "val_variance_loss": variance_loss,
+                "val_covariance_loss": covariance_loss,
+            }
+        )
         return loss
 
     def exclude_from_wt_decay(self, named_params, weight_decay, skip_list=("bias", "bn")):
-            params = []
-            excluded_params = []
+        params = []
+        excluded_params = []
 
-            for name, param in named_params:
-                if not param.requires_grad:
-                    continue
-                elif any(layer_name in name for layer_name in skip_list):
-                    excluded_params.append(param)
-                else:
-                    params.append(param)
+        for name, param in named_params:
+            if not param.requires_grad:
+                continue
+            elif any(layer_name in name for layer_name in skip_list):
+                excluded_params.append(param)
+            else:
+                params.append(param)
 
-            return [
-                {"params": params, "weight_decay": weight_decay},
-                {
-                    "params": excluded_params,
-                    "weight_decay": 0.0,
-                },
-            ]
+        return [
+            {"params": params, "weight_decay": weight_decay},
+            {
+                "params": excluded_params,
+                "weight_decay": 0.0,
+            },
+        ]
 
     def configure_optimizers(self):
         if self.exclude_bn_bias:
@@ -250,21 +256,38 @@ class VICReg(LightningModule):
             ),
             "interval": "step",
             "frequency": 1,
-          }
+        }
 
         return [optimizer], [scheduler]
 
     @staticmethod
     def add_model_specific_args(parent_parser):
-        parser = ArgumentParser(parents=[parent_parser], description="Pretrain a resnet model with VICReg", add_help=False)
+        parser = ArgumentParser(
+            parents=[parent_parser], description="Pretrain a resnet model with VICReg", add_help=False
+        )
 
         # backbone params
         parser.add_argument("--arch", default="resnet18", type=str, help="architecture of the backbone encoder network")
-        parser.add_argument("--maxpool1", default=False, type=bool, help='keep first conv same as the original resnet architecture, if set to false it is replace by a kernel 3, stride 1 conv (cifar-10)')
-        parser.add_argument("--first_conv", default=False, type=bool, help='keep first maxpool layer same as the original resnet architecture, if set to false, first maxpool is turned off (cifar10, maybe stl10)')
+        parser.add_argument(
+            "--maxpool1",
+            default=False,
+            type=bool,
+            help="keep first conv same as the original resnet architecture, if set to false it is replace by a kernel 3, stride 1 conv (cifar-10)",
+        )
+        parser.add_argument(
+            "--first_conv",
+            default=False,
+            type=bool,
+            help="keep first maxpool layer same as the original resnet architecture, if set to false, first maxpool is turned off (cifar10, maybe stl10)",
+        )
 
         # expander params
-        parser.add_argument("--mlp_expander", default='2048-2048-2048', type=str, help='size and number of layers of the MLP expander head')
+        parser.add_argument(
+            "--mlp_expander",
+            default="2048-2048-2048",
+            type=str,
+            help="size and number of layers of the MLP expander head",
+        )
 
         # data
         parser.add_argument("--dataset", default="cifar10", type=str, help="cifar10, imagenet")
@@ -281,18 +304,34 @@ class VICReg(LightningModule):
         parser.add_argument("--weight_decay", default=1e-4, type=float, help="weight decay")
         parser.add_argument("--learning_rate", default=0.3, type=float, help="base learning rate")
         parser.add_argument("--max_epochs", default=800, type=int, help="number of total epochs to run")
-        parser.add_argument("--fp32", default=False, type=bool, help="precision definition, if it set as False the trainer uses 16-bits by default")
+        parser.add_argument(
+            "--fp32",
+            default=False,
+            type=bool,
+            help="precision definition, if it set as False the trainer uses 16-bits by default",
+        )
 
         # Scheduler
         parser.add_argument("--warmup_epochs", default=10, type=int, help="number of warmup epochs")
 
         # Loss
-        parser.add_argument("--invariance-coeff", default=25.0, type=float, help='invariance regularization loss coefficient')
-        parser.add_argument("--variance-coeff", default=25.0, type=float, help='variance regularization loss coefficient')
-        parser.add_argument("--covariance-coeff", default=1.0, type=float, help='covariance regularization loss coefficient')
+        parser.add_argument(
+            "--invariance-coeff", default=25.0, type=float, help="invariance regularization loss coefficient"
+        )
+        parser.add_argument(
+            "--variance-coeff", default=25.0, type=float, help="variance regularization loss coefficient"
+        )
+        parser.add_argument(
+            "--covariance-coeff", default=1.0, type=float, help="covariance regularization loss coefficient"
+        )
 
         # Trainer & Infrastructure
-        parser.add_argument("--accelerator", default="auto", type=str, help="supports passing different accelerator types ('cpu', 'gpu', 'tpu', 'ipu', 'auto') as well as custom accelerator instances")
+        parser.add_argument(
+            "--accelerator",
+            default="auto",
+            type=str,
+            help="supports passing different accelerator types ('cpu', 'gpu', 'tpu', 'ipu', 'auto') as well as custom accelerator instances",
+        )
         parser.add_argument("--devices", default=1, type=int, help="number of devices to train on")
         parser.add_argument("--num_workers", default=0, type=int, help="num of workers per device")
         parser.add_argument("--num_nodes", default=1, type=int, help="num of nodes")
@@ -305,8 +344,9 @@ class VICReg(LightningModule):
 
 def cli_main():
     from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
-    from pl_bolts.datamodules import CIFAR10DataModule, STL10DataModule, ImagenetDataModule
-    from transforms import VICRegTrainDataTransform, VICRegEvalDataTransform
+    from pl_bolts.datamodules import CIFAR10DataModule, ImagenetDataModule, STL10DataModule
+
+    from transforms import VICRegEvalDataTransform, VICRegTrainDataTransform
 
     # model args
     parser = ArgumentParser()
@@ -314,12 +354,12 @@ def cli_main():
     args = parser.parse_args()
 
     # Dataset
-    if args.dataset=="cifar10":
+    if args.dataset == "cifar10":
         dm = CIFAR10DataModule(data_dir=args.data_dir, batch_size=args.batch_size, num_workers=args.num_workers)
 
         # Transform params defined by the dataset type
         args.input_height = dm.dims[-1]
-        args.num_classes=dm.num_classes
+        args.num_classes = dm.num_classes
         args.num_samples = dm.num_samples
         normalization = cifar10_normalization()
 
@@ -330,16 +370,16 @@ def cli_main():
 
         # Transform params defined by the dataset type
         args.input_height = dm.dims[-1]
-        args.num_classes=dm.num_classes
+        args.num_classes = dm.num_classes
         args.num_samples = dm.num_samples
         normalization = stl10_normalization()
 
-    elif args.dataset=="imagenet":
+    elif args.dataset == "imagenet":
         dm = ImagenetDataModule(data_dir=args.data_dir, batch_size=args.batch_size, num_workers=args.num_workers)
 
         # Transform params defined by the dataset type
         args.input_height = dm.dims[-1]
-        args.num_classes =dm.num_classes
+        args.num_classes = dm.num_classes
         args.num_samples = dm.num_samples
         normalization = imagenet_normalization()
 
@@ -396,6 +436,7 @@ def cli_main():
     )
 
     trainer.fit(model, datamodule=dm)
+
 
 if __name__ == "__main__":
     cli_main()
