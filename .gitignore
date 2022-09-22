@@ -133,3 +133,6 @@ data/image/*
 
 #Lightning Logs
 lightning_logs/*
+
+#vscode conf
+.vscode/*
