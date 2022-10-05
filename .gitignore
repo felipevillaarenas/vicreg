@@ -137,4 +137,4 @@ lightning_logs/*
 #vscode conf
 .vscode/*
 .vscode
-.vscode/
+.vscode/*
