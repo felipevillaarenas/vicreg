@@ -108,10 +108,10 @@ python vicreg_module.py
                 --warmup_steps 10
 ```
 
-### Results
+## Results
 I have pre-train the model for CIFAR10([here WandB eval metrics for CIFAR10](https://wandb.ai/felipevilla/VICReg-CIFAR10/reports/VICReg-Pre-Training-CIFAR10-And-Online-Eval--VmlldzoyNjc3MjUw?accessToken=dax8gmjqky9xl8peo8s2gu266sxq33rgdzuqshpjl5mc9sqf80eplnyqnjue2zn5))
 
-### Check the Colab version
+## Check the Colab version
 
 If you love notebooks and free GPUs, the Colab version of this repository can be found [here](https://colab.research.google.com/drive/1qQB85JVEIml9pNMIeES2hMfFZZkKmB75?usp=sharing)
 
